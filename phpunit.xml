@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    bootstrap="tests/bootstrap.php"
+    colors="true"
+    verbose="true"
+    stopOnFailure="false"
+    backupGlobals="false"
+    backupStaticAttributes="false"
+    >
+
+    <testsuites>
+        <testsuite name="Vinti4NetLegacy Test Suite">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+
+    <php>
+        <!-- Definir variáveis de ambiente para testes se necessário -->
+        <env name="APP_ENV" value="testing"/>
+        <env name="VINTI4NET_POS_ID" value="POS123"/>
+        <env name="VINTI4NET_POS_AUTH" value="ABCDEF123456789"/>
+        <env name="VINTI4NET_ENDPOINT" value="https://mc.vinti4net.cv/BizMPIOnUsSisp/CardPayment"/>
+    </php>
+
+</phpunit>

@@ -9,9 +9,5 @@
 .DS_Store
 Thumbs.db
 
-# PHPUnit / cobertura
-phpunit.xml
-/tests/bootstrap.php
-
 # Arquivos do Material Docs
 /site/
