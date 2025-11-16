@@ -1,0 +1,5 @@
+# Arquivos que não devem ser exportados em releases
+/tests/ export-ignore
+/.github/ export-ignore
+/phpunit.xml export-ignore
+/phpunit.xml.dist export-ignore

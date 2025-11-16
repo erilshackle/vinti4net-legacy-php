@@ -1,0 +1,67 @@
+site_name: Vinti4Net Legacy PHP SDK
+site_description: SDK moderno e compatível com PHP 5.6+ para integração com o SISP / Vinti4Net
+site_author: Erilando TS Carvalho
+
+repo_url: https://github.com/erilshackle/vinti4net-legacy-php
+repo_name: "GitHub: erilshackle/vinti4net-legacy-php"
+
+nav:
+  - Início: index.md
+  - Guia Rápido: quickstart.md
+  - Documentação Avançada: advanced.md
+  - API Reference: api.md
+  - Exemplos:
+    - Geral: examples.md
+    - Laravel: laravel.md
+
+theme:
+  name: material
+  language: pt
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - navigation.expand
+    - content.code.copy
+    - content.tabs.link
+    - search.suggest
+    - search.highlight
+    - palette.toggle
+  palette:
+    - scheme: default
+      primary: orange
+      accent: indigo
+    - scheme: slate
+      primary: blue
+      accent: indigo
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - tables
+  - footnotes
+  - def_list
+  - abbr
+  - attr_list
+  - smarty
+  - meta
+  - codehilite:
+      guess_lang: false
+
+  # Melhores extensões do Material
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.magiclink
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/erilshackle
