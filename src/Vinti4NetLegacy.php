@@ -6,78 +6,80 @@ use Exception;
 use InvalidArgumentException;
 
 /**
- ** Class Vinti4Net Legacy
+ * Vinti4Net Legacy SDK
  *
- * SDK de integração com o Vinti4Net (SISP, Cabo Verde) para pagamentos online .
+ * PHP SDK for integrating with **Vinti4Net (SISP – Cabo Verde)** to process
+ * online payments, service payments, mobile top-ups, and refunds.
  *
- * Suporta operações:
- * - Compra (Purchase) com 3D Secure
- * - Pagamento de Serviços
- * - Recarga de contas e cartões
- * - Reembolso (Refund)
+ * This legacy implementation is fully compatible with **PHP 5.6+**.
  *
- * Funcionalidades principais:
- * - Geração de formulário HTML auto-submit para iniciar pagamentos
- * - Processamento e validação de respostas do gateway
- * - Cálculo de fingerprints para integridade de dados
- * - Suporte a DCC (Dynamic Currency Conversion)
- * - Normalização de dados de faturamento (billing)
+ * Supported operations:
+ * - Purchase (3D Secure)
+ * - Service Payment
+ * - Recharge / Top-up
+ * - Refund
  *
- * ? Compatível com PHP 5.6+.
+ * Main features:
+ * - Generates auto-submit HTML forms for redirecting the customer to Vinti4Net
+ * - Validates and parses gateway responses
+ * - Fingerprint generation for request and response integrity
+ * - Billing data normalization for 3DS / fraud-prevention
+ * - Dynamic Currency Conversion (DCC) support
  *
- * @package Erilshk\Vinti4Net
- * @author  Erilando TS Carvalho
- * @license MIT
- * @version 1.0
+ * @package   Erilshk\Vinti4Net
+ * @author    Erilando TS Carvalho
+ * @license   MIT
+ * @version   1.0
  */
-
 class Vinti4NetLegacy
 {
-    /** @var string */
+    /** @var string Default Vinti4Net production URL */
     const DEFAULT_BASE_URL = "https://mc.vinti4net.cv/BizMPIOnUsSisp/CardPayment";
 
-    /** @var string */
+    /** @var string Payment type: Purchase */
     const TRANSACTION_TYPE_PURCHASE = '1';
-    /** @var string */
+
+    /** @var string Payment type: Service */
     const TRANSACTION_TYPE_SERVICE  = '2';
-    /** @var string */
+
+    /** @var string Payment type: Recharge */
     const TRANSACTION_TYPE_RECHARGE = '3';
-    /** @var string */
+
+    /** @var string Payment type: Refund */
     const TRANSACTION_TYPE_REFUND   = '4';
 
-    /** @var string */
+    /** @var string Default currency code (CVE – Cape Verde Escudo) */
     const CURRENCY_CVE = '132';
 
-    /** @var array Mensagens consideradas sucesso */
+    /** @var array Message types that represent successful transactions */
     const SUCCESS_MESSAGE_TYPES = ['8', '10', 'P', 'M'];
 
-    /** @var string */
+    /** @var string POS Identifier provided by SISP */
     private $posID;
 
-    /** @var string */
+    /** @var string POS authentication code provided by SISP */
     private $posAuthCode;
 
-    /** @var string */
+    /** @var string Gateway base URL */
     private $baseUrl;
 
-    /** @var array Dados do pedido */
+    /** @var array Internal request data structure */
     private $request = [];
 
-    /** @var bool */
+    /** @var bool Indicates if the payment request was already prepared */
     private $prepared = false;
 
     /**
-     * Construtor da classe Vinti4Net.
+     * Constructor
      *
-     * Cria uma nova instância do cliente para integração com o sistema de pagamentos Vinti4Net (SISP Cabo Verde).
-     * Inicializa os dados de POS (Point of Sale) e define a URL base do endpoint do gateway.
+     * Initializes a new Vinti4Net client with the required POS credentials.
      *
-     * @param string      $posID        Identificador do POS fornecido pelo SISP.
-     * @param string      $posAuthCode  Código de autenticação do POS fornecido pelo SISP.
-     * @param string|null $endpoint     URL base do endpoint do SISP. Caso não seja fornecida, será usado o padrão de produção.
+     * @param string      $posID        POS ID provided by SISP.
+     * @param string      $posAuthCode  POS authentication code provided by SISP.
+     * @param string|null $endpoint     Optional base endpoint URL. Defaults to the production gateway.
      *
      * @example
-     * $vinti4 = new Vinti4Net7('POS123', 'ABCDEF', 'https://vinti4.sisp.cv');
+     * $vinti4 = new Vinti4NetLegacy('POS123', 'ABCD1234');
      *
      * @return void
      */
@@ -90,41 +92,40 @@ class Vinti4NetLegacy
 
 
     /**
-     * Define parâmetros opcionais adicionais para a requisição de pagamento.
+     * Sets additional optional parameters for the payment request.
      *
-     * Este método permite configurar manualmente valores que não são definidos
-     * automaticamente durante a preparação do pagamento. Apenas chaves conhecidas
-     * e permitidas podem ser informadas — qualquer chave inválida resultará em
-     * uma InvalidArgumentException.
+     * This method allows manually configuring values that are not automatically
+     * set during payment preparation. Only recognized and allowed keys may be provided —
+     * any invalid key will throw an InvalidArgumentException.
      *
-     * A lista de campos permitidos reflete parâmetros aceitos pelo SISP/Vinti4Net:
+     * The list of allowed fields reflects the parameters accepted by SISP/Vinti4Net:
      *
-     * - merchantRef          Identificador único do pedido gerado pelo comerciante.
-     * - merchantSession      ID de sessão do comerciante.
-     * - languageMessages     Idioma das mensagens exibidas ao utilizador (ex: 'pt').
-     * - entityCode           Entidade de pagamento (para serviços ou recargas).
-     * - referenceNumber      Referência de pagamento (para serviços ou recargas).
-     * - timeStamp            Data/hora da requisição (Y-m-d H:i:s).
-     * - billing              Dados completos de faturação/3DS.
-     * - currency             Código da moeda (ISO3 ou numérico). É convertido automaticamente.
-     * - acctID               Identificador da conta do cliente.
-     * - acctInfo             Dados 3DS relacionados ao histórico da conta.
-     * - addrMatch            Indica se endereço de entrega corresponde ao de faturação.
-     * - billAddrCountry      País do endereço de faturação.
-     * - billAddrCity         Cidade do endereço de faturação.
-     * - billAddrLine1        Linha 1 do endereço (obrigatória para compras).
-     * - billAddrPostCode     Código postal.
-     * - email                E-mail do cliente.
-     * - clearingPeriod       Período de compensação (utilizado em REFUND).
+     * - merchantRef          Unique order identifier generated by the merchant.
+     * - merchantSession      Merchant session ID.
+     * - languageMessages     Language for messages displayed to the user (e.g., 'en', 'pt', 'fr').
+     * - entityCode           Payment entity (for services or top-ups).
+     * - referenceNumber      Payment reference (for services or top-ups).
+     * - timeStamp            Request date/time (Y-m-d H:i:s).
+     * - billing              Full billing / 3DS customer data.
+     * - currency             Currency code (ISO3 or numeric). Automatically converted if ISO3.
+     * - acctID               Customer account identifier.
+     * - acctInfo             3DS account history data.
+     * - addrMatch            Indicates whether delivery address matches billing address.
+     * - billAddrCountry      Billing country.
+     * - billAddrCity         Billing city.
+     * - billAddrLine1        Address line 1 (required for purchases).
+     * - billAddrPostCode     Postal code.
+     * - email                Customer email address.
+     * - clearingPeriod       Clearing period (used for REFUND requests).
      *
-     * Caso o parâmetro "currency" seja enviado como string ISO3 (ex: "CVE", "EUR", "USD"),
-     * ele será automaticamente convertido para o respetivo código numérico.
+     * If the "currency" parameter is provided as an ISO3 string (e.g., "CVE", "EUR", "USD"),
+     * it will be automatically converted to the corresponding numeric code.
      *
-     * @param array $params  Lista de parâmetros opcionais a definir.
+     * @param array $params  List of optional parameters to set.
      *
-     * @return $this  Retorna a instância para permitir encadeamento ("method chaining").
+     * @return $this  Returns the instance to allow method chaining.
      *
-     * @throws InvalidArgumentException Caso algum parâmetro informado não seja permitido.
+     * @throws InvalidArgumentException If any provided parameter is not allowed.
      */
     public function setRequestParams(array $params)
 
@@ -163,28 +164,28 @@ class Vinti4NetLegacy
     }
 
     /**
-     * Prepara uma requisição de pagamento do tipo **compra (3DS)**.
+     * Prepares a **purchase (3DS)** payment request.
      *
-     * Este método configura todos os dados necessários para iniciar uma transação de compra com autenticação 3D Secure.
-     * Ele monta o payload interno que será posteriormente convertido em formulário de pagamento.
+     * This method sets up all the necessary data to initiate a purchase transaction with 3D Secure authentication.
+     * It builds the internal payload that will later be converted into a payment form.
      *
-     * O array `$billing` pode conter campos diretos ou um sub-array `user`, que será automaticamente normalizado:
-     * - Campos obrigartórios: `email`, `billAddrCountry`, `billAddrCity`, `billAddrLine1`, `billAddrPostCode`.
-     * - Campos opcionais: `billAddrLine2`, `billAddrLine3`, `billAddrState`, `mobilePhone`, `workPhone`, `acctID`.
-     * - Sub-array `user` pode incluir: `id`, `created_at`, `updated_at`, `suspicious`, `phone`, `mobilePhoneCC`, `workPhoneCC`, etc.
+     * The `$billing` array may contain direct fields or a `user` sub-array, which will be automatically normalized:
+     * - Required fields: `email`, `billAddrCountry`, `billAddrCity`, `billAddrLine1`, `billAddrPostCode`.
+     * - Optional fields: `billAddrLine2`, `billAddrLine3`, `billAddrState`, `mobilePhone`, `workPhone`, `acctID`.
+     * - The `user` sub-array may include: `id`, `created_at`, `updated_at`, `suspicious`, `phone`, `mobilePhoneCC`, `workPhoneCC`, etc.
      *
-     * @param float|int $amount  Valor da transação (em escudos ou outra moeda configurada).
-     * @param array     $billing Dados de faturamento do cliente.
-     * @param string|int $currency Código da moeda (padrão: 'CVE' ou código numérico equivalente).
+     * @param float|int $amount   Transaction amount (in escudos or the configured currency).
+     * @param array     $billing  Customer billing data.
+     * @param string|int $currency Currency code (default: 'CVE' or equivalent numeric code).
      *
-     * @return $this Retorna a própria instância para permitir encadeamento de chamadas (fluent interface).
+     * @return $this Returns the instance to allow method chaining (fluent interface).
      *
-     * @throws InvalidArgumentException Se algum dado obrigatório estiver ausente ou inválido durante a preparação interna.
+     * @throws InvalidArgumentException If any required data is missing or invalid during internal preparation.
      *
      * @example
      * $vinti4->preparePurchasePayment(1500, [
      *     'user' => [
-     *         'email' => 'cliente@example.com',
+     *         'email' => 'customer@example.com',
      *         'country' => '132',
      *         'city' => 'Praia',
      *         'mobilePhone' => '+23899123456'
@@ -204,17 +205,17 @@ class Vinti4NetLegacy
 
 
     /**
-     * Prepara uma requisição de pagamento do tipo **serviço**.
+     * Prepares a **service** payment request.
      *
-     * Usado para pagamentos de serviços com código de entidade e número de referência.
+     * Used for service payments with an entity code and reference number.
      *
-     * @param float|int $amount Valor da transação.
-     * @param string|int $entity Código da entidade do serviço.
-     * @param string|int $number Número de referência da transação de serviço.
+     * @param float|int  $amount  Transaction amount.
+     * @param string|int $entity  Service entity code.
+     * @param string|int $number  Reference number of the service transaction.
      *
-     * @return $this Retorna a própria instância para encadeamento (fluent interface).
+     * @return $this Returns the instance to allow method chaining (fluent interface).
      *
-     * @throws InvalidArgumentException Se algum dado necessário estiver ausente ou inválido.
+     * @throws InvalidArgumentException If any required data is missing or invalid.
      */
     public function prepareServicePayment($amount, $entity, $number)
     {
@@ -228,17 +229,17 @@ class Vinti4NetLegacy
     }
 
     /**
-     * Prepara uma requisição de pagamento do tipo **recarga**.
+     * Prepares a **recharge** payment request.
      *
-     * Usado para recargas de contas, cartões ou telefones com entidade e número de referência.
+     * Used for recharging accounts, cards, or phones with an entity code and reference number.
      *
-     * @param float|int $amount Valor da recarga.
-     * @param string|int $entity Código da entidade da recarga.
-     * @param string|int $number Número de referência da recarga.
+     * @param float|int  $amount  Recharge amount.
+     * @param string|int $entity  Recharge entity code.
+     * @param string|int $number  Reference number of the recharge.
      *
-     * @return $this Retorna a própria instância para encadeamento (fluent interface).
+     * @return $this Returns the instance to allow method chaining (fluent interface).
      *
-     * @throws InvalidArgumentException Se algum dado necessário estiver ausente ou inválido.
+     * @throws InvalidArgumentException If any required data is missing or invalid.
      */
     public function prepareRechargePayment($amount, $entity, $number)
     {
@@ -252,20 +253,20 @@ class Vinti4NetLegacy
     }
 
     /**
-     * Prepara uma requisição de **reembolso (refund)**.
+     * Prepares a **refund** payment request.
      *
-     * Este método é usado para estornar uma transação previamente aprovada.
-     * É necessário informar o ID do comerciante, sessão, ID da transação original e período de compensação.
+     * This method is used to reverse a previously approved transaction.
+     * It requires the merchant ID, session, original transaction ID, and clearing period.
      *
-     * @param float|int $amount Valor do reembolso (deve ser inteiro em unidade da moeda, sem decimais para SISP).
-     * @param string $merchantRef Identificador único do pedido original no sistema do comerciante.
-     * @param string $merchantSession Identificador da sessão do pedido original.
-     * @param string $transactionID ID da transação que será estornada.
-     * @param string|int $clearingPeriod Período de compensação relacionado ao estorno.
+     * @param float|int  $amount          Refund amount (must be an integer in currency units, no decimals for SISP).
+     * @param string      $merchantRef     Unique identifier of the original order in the merchant system.
+     * @param string      $merchantSession Identifier of the original order session.
+     * @param string      $transactionID   ID of the transaction to be refunded.
+     * @param string|int  $clearingPeriod  Clearing period related to the refund.
      *
-     * @return $this Retorna a própria instância para encadeamento (fluent interface).
+     * @return $this Returns the instance to allow method chaining (fluent interface).
      *
-     * @throws InvalidArgumentException Se algum dado obrigatório estiver ausente ou inválido.
+     * @throws InvalidArgumentException If any required data is missing or invalid.
      */
     public function prepareRefundPayment($amount, $merchantRef, $merchantSession, $transactionID, $clearingPeriod)
     {
@@ -283,18 +284,18 @@ class Vinti4NetLegacy
 
 
     /**
-     * Gera um **formulário HTML de pagamento** com auto-submit para iniciar a transação no Vinti4Net.
+     * Generates an **HTML payment form** with auto-submit to initiate the transaction on Vinti4Net.
      *
-     * Este método constrói um formulário HTML com campos ocultos contendo todos os dados necessários
-     * para a transação, incluindo fingerprint de segurança. Ao carregar a página, o formulário é
-     * automaticamente submetido para a URL do gateway.
+     * This method builds an HTML form with hidden fields containing all necessary transaction data,
+     * including the security fingerprint. When the page loads, the form is automatically submitted
+     * to the gateway URL.
      *
-     * @param string $responseUrl URL para a qual o gateway deve enviar a resposta da transação.
-     * @param string|null $merchantRef Opcional. Referência única do comerciante para identificar a transação.
+     * @param string      $responseUrl   URL to which the gateway should send the transaction response.
+     * @param string|null $merchantRef   Optional. Unique merchant reference to identify the transaction.
      *
-     * @return string HTML completo do formulário com auto-submit.
+     * @return string HTML markup of the form with auto-submit.
      *
-     * @throws InvalidArgumentException Se algum parâmetro necessário estiver ausente ou inválido.
+     * @throws InvalidArgumentException If any required parameter is missing or invalid.
      */
     public function createPaymentForm($responseUrl, $merchantRef = null)
     {
@@ -323,48 +324,48 @@ class Vinti4NetLegacy
     }
 
     /**
- * Processa o retorno enviado pelo Vinti4Net após o pagamento.
- *
- * Este método valida a resposta recebida do gateway, verifica se o usuário cancelou a transação,
- * calcula o fingerprint para garantir integridade dos dados, e extrai informações adicionais como DCC (Dynamic Currency Conversion)
- * quando aplicável.
- *
- * A resposta retornada possui a seguinte estrutura:
- * - `status` (string): Status da transação (`SUCCESS`, `ERROR`, `CANCELLED`, `INVALID_FINGERPRINT`).
- * - `message` (string): Mensagem descritiva do status.
- * - `success` (bool): Indica se a transação foi processada com sucesso.
- * - `data` (array): Dados brutos recebidos do gateway.
- * - `dcc` (array): Informações de conversão de moeda dinâmica (se aplicável), incluindo:
- *     - `enabled` (bool)
- *     - `amount` (float|null)
- *     - `currency` (string|null)
- *     - `markup` (float|null)
- *     - `rate` (float|null)
- * - `debug` (array): Informações de depuração, especialmente se o fingerprint não for válido.
- * - `detail` (string|null): Detalhes adicionais de erro, se houver.
- *
- * @param array $postData Dados recebidos via POST do gateway Vinti4Net.
- *
- * @return array{
- *     status:string,
- *     message:string,
- *     success:bool,
- *     data:array,
- *     dcc:array,
- *     debug:array,
- *     detail:string|null
- * }
- *
- * @example
- * $response = $vinti4->processResponse($_POST);
- * if ($response['status'] === 'SUCCESS') {
- *     echo "Pagamento concluído com sucesso!";
- * } elseif ($response['status'] === 'CANCELLED') {
- *     echo "Usuário cancelou a transação.";
- * } else {
- *     echo "Falha no pagamento: " . $response['message'];
- * }
- */
+     * Processes the response sent by Vinti4Net after a payment.
+     *
+     * This method validates the response received from the gateway, checks if the user canceled
+     * the transaction, computes the fingerprint to ensure data integrity, and extracts additional
+     * information such as DCC (Dynamic Currency Conversion) when applicable.
+     *
+     * The returned response has the following structure:
+     * - `status` (string): Transaction status (`SUCCESS`, `ERROR`, `CANCELLED`, `INVALID_FINGERPRINT`).
+     * - `message` (string): Descriptive status message.
+     * - `success` (bool): Indicates whether the transaction was successfully processed.
+     * - `data` (array): Raw data received from the gateway.
+     * - `dcc` (array): Dynamic currency conversion information (if applicable), including:
+     *     - `enabled` (bool)
+     *     - `amount` (float|null)
+     *     - `currency` (string|null)
+     *     - `markup` (float|null)
+     *     - `rate` (float|null)
+     * - `debug` (array): Debug information, especially if the fingerprint is invalid.
+     * - `detail` (string|null): Additional error details, if any.
+     *
+     * @param array $postData Data received via POST from the Vinti4Net gateway.
+     *
+     * @return array{
+     *     status: string,
+     *     message: string,
+     *     success: bool,
+     *     data: array,
+     *     dcc: array,
+     *     debug: array,
+     *     detail: string|null
+     * }
+     *
+     * @example
+     * $response = $vinti4->processResponse($_POST);
+     * if ($response['status'] === 'SUCCESS') {
+     *     echo "Payment completed successfully!";
+     * } elseif ($response['status'] === 'CANCELLED') {
+     *     echo "User canceled the transaction.";
+     * } else {
+     *     echo "Payment failed: " . $response['message'];
+     * }
+     */
     public function processResponse(array $postData)
     {
         $result = [
@@ -427,12 +428,13 @@ class Vinti4NetLegacy
     }
 
     /**
-     * Prepara a estrutura interna do pedido.
+     * Prepares the internal structure of the request.
      *
-     * @param array $params
+     * @param array $params Parameters to configure the request.
+     *
      * @return void
      *
-     * @throws Exception
+     * @throws Exception If an error occurs during preparation.
      */
     private function preparePaymentRequest(array $params)
     {
@@ -461,10 +463,11 @@ class Vinti4NetLegacy
     }
 
     /**
-     * Monta os campos finais enviados ao POST do SISP.
+     * Builds the final fields to be sent via POST to the SISP gateway.
      *
-     * @param array $fields
-     * @return array{postUrl:string,fields:array}
+     * @param array $fields Input fields to include in the request.
+     *
+     * @return array{postUrl: string, fields: array} Returns the POST URL and the prepared fields.
      */
     private function processRequest(array $fields)
     {
@@ -492,10 +495,11 @@ class Vinti4NetLegacy
     }
 
     /**
-     * Normaliza os dados de billing para envio ao SISP.
+     * Normalizes the billing data for submission to the SISP gateway.
      *
-     * @param array $billing
-     * @return array
+     * @param array $billing Billing information to be normalized.
+     *
+     * @return array Normalized billing data ready for the request.
      */
     private function normalizeBilling(array $billing)
     {
@@ -583,13 +587,15 @@ class Vinti4NetLegacy
     }
 
     /**
-     * Converte moeda ISO para código numérico SISP.
+     * Converts an ISO currency code to the SISP numeric code.
      *
-     * @param string|int $currency
-     * @return int
+     * @param string|int $currency ISO 4217 currency code (e.g., 'CVE', 'USD') or numeric code.
      *
-     * @throws InvalidArgumentException
+     * @return int Corresponding numeric code used by SISP.
+     *
+     * @throws InvalidArgumentException If the provided currency is invalid or unsupported.
      */
+
     private function currencyToCode($currency)
     {
         $currency = strtoupper($currency);
@@ -619,11 +625,12 @@ class Vinti4NetLegacy
     }
 
     /**
-     * Calcula fingerprint do pedido.
+     * Calculates the fingerprint for the request.
      *
-     * @param array $data
-     * @param string $type payment|refund
-     * @return string Base64 do hash SHA512
+     * @param array $data Data of the request to hash.
+     * @param string $type Type of request: 'payment' or 'refund'.
+     *
+     * @return string Base64-encoded SHA512 hash of the request data.
      */
     private function fingerprintRequest(array $data, $type = 'payment')
     {
@@ -682,11 +689,12 @@ class Vinti4NetLegacy
 
 
     /**
-     * Calcula fingerprint de resposta enviada pelo SISP.
+     * Calculates the fingerprint for the response sent by the SISP gateway.
      *
-     * @param array $data
-     * @param string $type
-     * @return string Base64 do hash SHA512
+     * @param array $data Response data to validate.
+     * @param string $type Type of response: 'payment' or 'refund'.
+     *
+     * @return string Base64-encoded SHA512 hash of the response data.
      */
     private function fingerprintResponse(array $data, $type = 'payment')
     {
@@ -750,12 +758,13 @@ class Vinti4NetLegacy
 
 
     /**
-     * Gera o JSON codificado da secção billing.
+     * Generates the Base64-encoded JSON for the billing section.
      *
-     * @param array $billing
-     * @return string Base64 JSON
+     * @param array $billing Billing data to encode.
      *
-     * @throws InvalidArgumentException
+     * @return string Base64-encoded JSON string.
+     *
+     * @throws InvalidArgumentException If the billing data is invalid or incomplete.
      */
     private function generatePurchaseRequest(array $billing)
     {
