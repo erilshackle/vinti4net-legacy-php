@@ -1,6 +1,6 @@
 # 📦 **vinti4net-legacy**
 
-![Packagist Version](https://img.shields.io/packagist/v/erilshk/vinti4net-legacy-php?color=blue&label=version) ![PHP Version](https://img.shields.io/packagist/php-v/erilshk/vinti4net-legacy-php?color=purple) ![License](https://img.shields.io/packagist/l/erilshk/vinti4net-legacy-php?color=green) ![Tests](https://github.com/erilshackle/vinti4net-legacy-php/actions/workflows/phpunit.yml/badge.svg)
+![Packagist Version](https://img.shields.io/packagist/v/erilshk/vinti4net-legacy?color=blue&label=version) ![PHP Version](https://img.shields.io/packagist/php-v/erilshk/vinti4net-legacy?color=purple) ![License](https://img.shields.io/packagist/l/erilshk/vinti4net-legacy?color=green) ![Tests](https://github.com/erilshackle/vinti4net-legacy-php/actions/workflows/phpunit.yml/badge.svg)
 
 Biblioteca PHP **estável** e compativel com `erilshk\vinti4net` para integração com o **Vinti4Net (SISP – Cabo Verde)**, com suporte total a:
 
@@ -128,8 +128,7 @@ Valida e interpreta as respostas do SISP.
 
 * Fingerprint SHA512 implementado conforme especificações do SISP no código _MOP021_
 * Sanitização e normalização de todos os campos enviados
-* Prevenção de valores inesperados durante preparação do pedido
-
+* Prevenção de valores inesperados durante preparação do pedi
 ---
 
 ## 📜 Licença
@@ -143,7 +142,8 @@ MIT — livre para uso pessoal e comercial.
 **Eril TS Carvalho**
 Criador e mantenedor do SDK Legado.
 
+[![GitHub Stars](https://img.shields.io/github/stars/erilshackle/vinti4net-legacy-php?color=yellow)](https://github.com/erilshackle/vinti4net-legacy-php/stargazers) 
+
 ---
 
-
-[![GitHub Issues](https://img.shields.io/github/issues/erilshackle/vinti4net-legacy-php?color=red)](https://github.com/erilshackle/vinti4net-legacy-php/issues) [![GitHub Stars](https://img.shields.io/github/stars/erilshackle/vinti4net-legacy-php?color=yellow)](https://github.com/erilshackle/vinti4net-legacy-php/stargazers) [![GitHub Forks](https://img.shields.io/github/forks/erilshackle/vinti4net-legacy-php?color=blue)](https://github.com/erilshackle/vinti4net-legacy-php/network/members)
+[![Coverage](https://codecov.io/gh/erilshackle/vinti4net-legacy-php/branch/main/graph/badge.svg?token=4a355bba-cd40-4919-808e-40f649f7a99a)](https://codecov.io/gh//erilshackle/vinti4net-legacy-php) [![GitHub Issues](https://img.shields.io/github/issues/erilshackle/vinti4net-legacy-php?color=red)](https://github.com/erilshackle/vinti4net-legacy-php/issues) [![GitHub Forks](https://img.shields.io/github/forks/erilshackle/vinti4net-legacy-php?color=blue)](https://github.com/erilshackle/vinti4net-legacy-php/network/members)

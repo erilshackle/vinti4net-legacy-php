@@ -1,36 +1,40 @@
-name: Run Tests
+name: Run Tests & Upload Coverage
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
 
 jobs:
-  phpunit:
-    name: PHPUnit Tests
+  php-tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php: [8.1, 8.2]
-    steps:
-      - uses: actions/checkout@v3
+        php: [8.2]
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v3
         with:
           php-version: ${{ matrix.php }}
-          coverage: xdebug
+          extensions: mbstring, pcov
+          coverage: pcov
 
       - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-suggest
+        run: composer install --no-interaction --prefer-dist
 
-      - name: Run PHPUnit
+      - name: Run PHPUnit with Coverage
         run: |
-          ./vendor/bin/phpunit --configuration phpunit.xml --coverage-text --colors=always
+          mkdir -p build/logs
+          ./vendor/bin/phpunit --coverage-clover build/logs/clover.xml
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
-          files: ./coverage.xml
+          files: build/logs/clover.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true

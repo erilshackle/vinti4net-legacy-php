@@ -3,3 +3,5 @@
 /.github/ export-ignore
 /phpunit.xml export-ignore
 /phpunit.xml.dist export-ignore
+
+/build/ export-ignore
