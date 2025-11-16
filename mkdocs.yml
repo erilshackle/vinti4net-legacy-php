@@ -1,3 +1,4 @@
+docs_dir: mkdocs
 site_name: Vinti4Net Legacy PHP SDK
 site_description: SDK moderno e compatível com PHP 5.6+ para integração com o SISP / Vinti4Net
 site_author: Erilando TS Carvalho
