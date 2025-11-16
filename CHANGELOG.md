@@ -2,6 +2,11 @@
 
 Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
+## [v1.1.0] - 2025-11-16
+
+### Changed
+- Update PHPDocs to English
+
 ## [v1.0.0] - 2025-11-16
 
 ### Added
