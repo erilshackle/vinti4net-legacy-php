@@ -6,7 +6,7 @@
     stopOnFailure="false"
     backupGlobals="false"
     backupStaticAttributes="false"
-    >
+>
 
     <testsuites>
         <testsuite name="Vinti4NetLegacy Test Suite">
@@ -14,8 +14,17 @@
         </testsuite>
     </testsuites>
 
+    <!-- Enable coverage and configure what should be included -->
+    <coverage>
+        <include>
+            <directory suffix=".php">src</directory>
+        </include>
+        <report>
+            <clover outputFile="build/logs/clover.xml"/>
+        </report>
+    </coverage>
+
     <php>
-        <!-- Definir variáveis de ambiente para testes se necessário -->
         <env name="APP_ENV" value="testing"/>
         <env name="VINTI4NET_POS_ID" value="POS123"/>
         <env name="VINTI4NET_POS_AUTH" value="ABCDEF123456789"/>
