@@ -1,12 +1,12 @@
 {
-    "name": "erilshackle/vinti4net-legacy",
+    "name": "erilshk/vinti4net-legacy",
     "description": "SDK Legacy de integração com o Vinti4Net (SISP Cabo Verde) para pagamentos online, compatível com PHP 5.6+.",
     "type": "library",
     "license": "MIT",
     "authors": [
         {
             "name": "Erilando TS Carvalho",
-            "email": "youremail@example.com",
+            "email": "erilandocarvalho@gmail.com",
             "role": "Developer",
             "homepage": "https://github.com/erilshackle"
         }
@@ -38,7 +38,10 @@
     "keywords": [
         "vinti4net",
         "sisp",
+        "redeVinti4",
         "php",
+        "php 5",
+        "php 7",
         "sdk",
         "payments",
         "legacy",
