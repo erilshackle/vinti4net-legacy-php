@@ -27,7 +27,7 @@ composer require erilshk/vinti4net-legacy
 
 Ou manualmente, incluindo a classe diretamente no seu projeto legado.
 
-[baixar aqui](src/Vinti4NetLegacy.php)
+[baixar aqui](https://github.com/erilshackle/vinti4net-legacy-php/releases/download/v1.0.0/Vinti4NetLegacy.php)
 
 ---
 
