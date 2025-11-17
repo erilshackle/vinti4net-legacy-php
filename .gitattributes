@@ -1,11 +1,11 @@
-# Arquivos que não devem ser exportados em releases
-/tests/ export-ignore
-/.github/ export-ignore
-/.gitattributes export-ignore
-.phpunit.result.cache export-ignore
-.phpunit.result.cache export-ignore
-/phpunit.xml export-ignore
-/phpunit.xml.dist export-ignore
+# Pastas a ignorar nos releases
+tests/         export-ignore
+.github/       export-ignore
+build/         export-ignore
+docs/          export-ignore
 
-/build/ export-ignore
-/docs/ export-ignore
+# Arquivos específicos a ignorar
+.gitattributes export-ignore
+.phpunit.result.cache export-ignore
+phpunit.xml export-ignore
+phpunit.xml.dist export-ignore
