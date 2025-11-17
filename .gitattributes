@@ -9,3 +9,5 @@ docs/          export-ignore
 .phpunit.result.cache export-ignore
 phpunit.xml export-ignore
 phpunit.xml.dist export-ignore
+.gitignore    export-ignore
+mkdocs.yml    export-ignore
