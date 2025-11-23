@@ -36,16 +36,13 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "keywords": [
-        "vinti4net",
-        "sisp",
-        "redeVinti4",
-        "php",
         "php 5",
         "php 7",
         "sdk",
         "payments",
         "legacy",
-        "cabo verde"
+        "cabo verde",
+        "vinti4net-legacy"
     ],
     "support": {
         "issues": "https://github.com/erilshackle/vinti4net-legacy-php/issues",

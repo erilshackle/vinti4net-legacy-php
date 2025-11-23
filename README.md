@@ -2,6 +2,8 @@
 
 ![PHP Version](https://img.shields.io/packagist/php-v/erilshk/vinti4net-legacy?color=purple) ![Packagist Version](https://img.shields.io/packagist/v/erilshk/vinti4net-legacy?color=blue&label=version) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) ![Tests](https://github.com/erilshackle/vinti4net-legacy-php/actions/workflows/phpunit.yml/badge.svg)
 
+> #### ⚠️ Considere usar **[erilshk\vinti4net](github.com/erilshackle/vinti4net-php)** para **php +8.1**
+
 Biblioteca PHP **estável** e compativel com `erilshk\vinti4net` para integração com o **Vinti4Net (SISP – Cabo Verde)**, com suporte total a:
 
 * **Compras (3D Secure)**
@@ -12,8 +14,6 @@ Biblioteca PHP **estável** e compativel com `erilshk\vinti4net` para integraç�
 * **Fingerprints SHA512**
   
 _Apesar de ter sido projetada para funcionar em ambientes modernos, a biblioteca mantém **compatibilidade com PHP 5.6+**, tornando-a ideal para sistemas legados que precisam de uma solução atualizada, segura e bem estruturada._
-
-> ⚠️ Considere usar **[erilshk\vinti4net](github.com/erilshackle/vinti4net-php)** para **php +8.1**
 
 ---
 
