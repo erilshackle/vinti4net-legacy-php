@@ -192,7 +192,7 @@ class Vinti4NetLegacy
      *     ]
      * ]);
      */
-    public function preparePurchasePayment($amount, array $billing, $currency = 'CVE')
+    public function preparePurchase($amount, array $billing, $currency = 'CVE')
     {
         $this->preparePaymentRequest([
             'amount' => $amount,
@@ -241,7 +241,7 @@ class Vinti4NetLegacy
      *
      * @throws InvalidArgumentException If any required data is missing or invalid.
      */
-    public function prepareRechargePayment($amount, $entity, $number)
+    public function prepareRecharge($amount, $entity, $number)
     {
         $this->preparePaymentRequest([
             'amount' => $amount,
@@ -266,7 +266,7 @@ class Vinti4NetLegacy
      *
      * @throws InvalidArgumentException If any required data is missing or invalid.
      */
-    public function prepareRefundPayment($amount, $transactionID, $clearingPeriod)
+    public function prepareRefund($amount, $transactionID, $clearingPeriod)
     {
         $this->preparePaymentRequest([
             'transactionCode'   => self::TRANSACTION_TYPE_REFUND,
@@ -628,7 +628,7 @@ class Vinti4NetLegacy
      *
      * @return string Base64-encoded SHA512 hash of the request data.
      */
-    private function fingerprintRequest(array $data, $type = 'payment')
+    private function fingerprintRequest(array $data)
     {
         $encodedPOSAuthCode = base64_encode(hash('sha512', $this->posAuthCode, true));
 
