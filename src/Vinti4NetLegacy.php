@@ -1,6 +1,6 @@
 <?php
 
-namespace Erilshk\Vinti4NetLegacy;
+namespace Erilshk\Vinti4Net;
 
 use Exception;
 use InvalidArgumentException;
