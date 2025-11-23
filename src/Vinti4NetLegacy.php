@@ -278,7 +278,9 @@ class Vinti4NetLegacy
             'merchantRef'       => $merchantRef,
             'merchantSession'   => $merchantSession,
         ]);
-
+        
+        $this->request['reversal'] = 'R';
+        
         return $this;
     }
 
@@ -475,12 +477,10 @@ class Vinti4NetLegacy
             $fields['purchaseRequest'] = $this->generatePurchaseRequest($fields['billing']);
             $fields = array_merge($fields, $fields['billing']);
         }
-
-        $type = $fields['transactionCode'] != self::TRANSACTION_TYPE_REFUND ? 'payment' : 'refund';
-
+        
         unset($fields['billing']);
 
-        $fields['fingerprint'] = $this->fingerprintRequest($fields, $type);
+        $fields['fingerprint'] = $this->fingerprintRequest($fields);
 
         $postUrl = $this->baseUrl . '?' . http_build_query([
             'FingerPrint' => $fields['fingerprint'],
@@ -636,55 +636,24 @@ class Vinti4NetLegacy
     {
         $encodedPOSAuthCode = base64_encode(hash('sha512', $this->posAuthCode, true));
 
-        // ------------------------------------------------------
-        // PAYMENT
-        // ------------------------------------------------------
-        if ($type === 'payment') {
+        $amount = isset($data['amount']) ? (float)$data['amount'] : 0;
+        $amountLong = (int)bcmul($amount, '1000', 0);
 
-            $amount = isset($data['amount']) ? (float)$data['amount'] : 0;
-            $amountLong = (int)bcmul($amount, '1000', 0);
+        $entity = !empty($data['entityCode']) ? (int)$data['entityCode'] : '';
+        $reference = !empty($data['referenceNumber']) ? (int)$data['referenceNumber'] : '';
 
-            $entity = !empty($data['entityCode']) ? (int)$data['entityCode'] : '';
-            $reference = !empty($data['referenceNumber']) ? (int)$data['referenceNumber'] : '';
-
-            $toHash = $encodedPOSAuthCode .
-                (isset($data['timeStamp']) ? $data['timeStamp'] : '') .
-                $amountLong .
-                (isset($data['merchantRef']) ? $data['merchantRef'] : '') .
-                (isset($data['merchantSession']) ? $data['merchantSession'] : '') .
-                (isset($data['posID']) ? $data['posID'] : '') .
-                (isset($data['currency']) ? $data['currency'] : '') .
-                (isset($data['transactionCode']) ? $data['transactionCode'] : '') .
-                $entity .
-                $reference;
-
-            return base64_encode(hash('sha512', $toHash, true));
-        }
-
-        // ------------------------------------------------------
-        // REFUND
-        // ------------------------------------------------------
-        if ($type === 'refund') {
-
-            // amount deve ser inteiro
-            $amount = isset($data['amount']) ? (string)$data['amount'] : '';
-            if (!preg_match('/^\d+$/', $amount)) {
-                throw new InvalidArgumentException("Amount deve ser inteiro, sem casas decimais.");
-            }
-
-            $toHash = $encodedPOSAuthCode .
-                (isset($data['posID']) ? $data['posID'] : '') .
-                (isset($data['merchantRef']) ? $data['merchantRef'] : '') .
-                (isset($data['merchantSession']) ? $data['merchantSession'] : '') .
-                $amount .
-                (isset($data['currency']) ? $data['currency'] : '') .
-                (isset($data['transactionCode']) ? $data['transactionCode'] : '') .
-                (isset($data['reversal']) ? $data['reversal'] : ''); // 'R'
-
-            return base64_encode(hash('sha512', $toHash, true));
-        }
-
-        throw new InvalidArgumentException("Invalid fingerprint type: {$type}");
+        $toHash = $encodedPOSAuthCode .
+            (isset($data['timeStamp']) ? $data['timeStamp'] : '') .
+            $amountLong .
+            (isset($data['merchantRef']) ? $data['merchantRef'] : '') .
+            (isset($data['merchantSession']) ? $data['merchantSession'] : '') .
+            (isset($data['posID']) ? $data['posID'] : '') .
+            (isset($data['currency']) ? $data['currency'] : '') .
+            (isset($data['transactionCode']) ? $data['transactionCode'] : '') .
+            $entity .
+            $reference;
+        
+        return base64_encode(hash('sha512', $toHash, true));
     }
 
 
@@ -696,64 +665,32 @@ class Vinti4NetLegacy
      *
      * @return string Base64-encoded SHA512 hash of the response data.
      */
-    private function fingerprintResponse(array $data, $type = 'payment')
+    private function fingerprintResponse(array $data)
     {
         $encodedPOSAuthCode = base64_encode(hash('sha512', $this->posAuthCode, true));
 
-        // ------------------------------------------------------
-        // PAYMENT
-        // ------------------------------------------------------
-        if ($type === 'payment') {
+         $amount = isset($data["merchantRespPurchaseAmount"]) ? (float)$data["merchantRespPurchaseAmount"] : 0;
+         $amountLong = (int)bcmul($amount, '1000', 0);
 
-            $amount = isset($data["merchantRespPurchaseAmount"]) ? (float)$data["merchantRespPurchaseAmount"] : 0;
-            $amountLong = (int)bcmul($amount, '1000', 0);
+         $toHash =
+             $encodedPOSAuthCode .
+             (isset($data["messageType"]) ? $data["messageType"] : '') .
+             (isset($data["merchantRespCP"]) ? $data["merchantRespCP"] : '') .
+             (isset($data["merchantRespTid"]) ? $data["merchantRespTid"] : '') .
+             (isset($data["merchantRespMerchantRef"]) ? $data["merchantRespMerchantRef"] : '') .
+             (isset($data["merchantRespMerchantSession"]) ? $data["merchantRespMerchantSession"] : '') .
+             $amountLong .
+             (isset($data["merchantRespMessageID"]) ? $data["merchantRespMessageID"] : '') .
+             (isset($data["merchantRespPan"]) ? $data["merchantRespPan"] : '') .
+             (isset($data["merchantResp"]) ? $data["merchantResp"] : '') .
+             (isset($data["merchantRespTimeStamp"]) ? $data["merchantRespTimeStamp"] : '') .
+             (isset($data['merchantRespReferenceNumber']) && $data['merchantRespReferenceNumber'] !== '' ? (int)$data['merchantRespReferenceNumber'] : '') .
+             (isset($data['merchantRespEntityCode']) && $data['merchantRespEntityCode'] !== '' ? (int)$data['merchantRespEntityCode'] : '') .
+             (isset($data["merchantRespClientReceipt"]) ? $data["merchantRespClientReceipt"] : '') .
+             trim(isset($data["merchantRespAdditionalErrorMessage"]) ? $data["merchantRespAdditionalErrorMessage"] : '') .
+             (isset($data["merchantRespReloadCode"]) ? $data["merchantRespReloadCode"] : '');
 
-            $toHash =
-                $encodedPOSAuthCode .
-                (isset($data["messageType"]) ? $data["messageType"] : '') .
-                (isset($data["merchantRespCP"]) ? $data["merchantRespCP"] : '') .
-                (isset($data["merchantRespTid"]) ? $data["merchantRespTid"] : '') .
-                (isset($data["merchantRespMerchantRef"]) ? $data["merchantRespMerchantRef"] : '') .
-                (isset($data["merchantRespMerchantSession"]) ? $data["merchantRespMerchantSession"] : '') .
-                $amountLong .
-                (isset($data["merchantRespMessageID"]) ? $data["merchantRespMessageID"] : '') .
-                (isset($data["merchantRespPan"]) ? $data["merchantRespPan"] : '') .
-                (isset($data["merchantResp"]) ? $data["merchantResp"] : '') .
-                (isset($data["merchantRespTimeStamp"]) ? $data["merchantRespTimeStamp"] : '') .
-                (isset($data['merchantRespReferenceNumber']) && $data['merchantRespReferenceNumber'] !== '' ? (int)$data['merchantRespReferenceNumber'] : '') .
-                (isset($data['merchantRespEntityCode']) && $data['merchantRespEntityCode'] !== '' ? (int)$data['merchantRespEntityCode'] : '') .
-                (isset($data["merchantRespClientReceipt"]) ? $data["merchantRespClientReceipt"] : '') .
-                trim(isset($data["merchantRespAdditionalErrorMessage"]) ? $data["merchantRespAdditionalErrorMessage"] : '') .
-                (isset($data["merchantRespReloadCode"]) ? $data["merchantRespReloadCode"] : '');
-
-            return base64_encode(hash('sha512', $toHash, true));
-        }
-
-        // ------------------------------------------------------
-        // REFUND
-        // ------------------------------------------------------
-        if ($type === 'refund') {
-
-            $amount = isset($data['merchantRespPurchaseAmount'])
-                ? (int)$data['merchantRespPurchaseAmount']
-                : 0;
-
-            $toHash =
-                $encodedPOSAuthCode .
-                (isset($data["messageType"]) ? $data["messageType"] : '') .
-                (isset($data["merchantRespClearingPeriod"]) ? $data["merchantRespClearingPeriod"] : '') .
-                (isset($data["merchantRespTransactionID"]) ? $data["merchantRespTransactionID"] : '') .
-                (isset($data["merchantRespMerchantRef"]) ? $data["merchantRespMerchantRef"] : '') .
-                (isset($data["merchantRespMerchantSession"]) ? $data["merchantRespMerchantSession"] : '') .
-                $amount .
-                (isset($data["merchantRespMessageID"]) ? $data["merchantRespMessageID"] : '') .
-                (isset($data["merchantResp"]) ? $data["merchantResp"] : '') .
-                (isset($data["merchantRespTimeStamp"]) ? $data["merchantRespTimeStamp"] : '');
-
-            return base64_encode(hash('sha512', $toHash, true));
-        }
-
-        throw new InvalidArgumentException("Invalid fingerprint type: {$type}");
+        return base64_encode(hash('sha512', $toHash, true));
     }
 
 
