@@ -31,10 +31,10 @@ theme:
   palette:
     - scheme: default
       primary: orange
-      accent: indigo
+      accent: teal
     - scheme: slate
-      primary: blue
-      accent: indigo
+      primary: teal
+      accent: orange
   icon:
     repo: fontawesome/brands/github
 

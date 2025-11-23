@@ -69,7 +69,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="orange" data-md-color-accent="indigo">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="orange" data-md-color-accent="teal">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -127,13 +127,13 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="orange" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="orange" data-md-color-accent="teal"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
     
   
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="orange"  aria-hidden="true"  type="radio" name="__palette" id="__palette_1">
     
   
 </form>
@@ -418,10 +418,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#preparepurchasepayment" class="md-nav__link">
+  <a href="#preparepurchase" class="md-nav__link">
     <span class="md-ellipsis">
       
-        preparePurchasePayment
+        preparePurchase
       
     </span>
   </a>
@@ -451,10 +451,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#preparerechargepayment" class="md-nav__link">
+  <a href="#preparerecharge" class="md-nav__link">
     <span class="md-ellipsis">
       
-        prepareRechargePayment
+        prepareRecharge
       
     </span>
   </a>
@@ -462,10 +462,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#preparerefundpayment" class="md-nav__link">
+  <a href="#preparerefund" class="md-nav__link">
     <span class="md-ellipsis">
       
-        prepareRefundPayment
+        prepareRefund
       
     </span>
   </a>
@@ -769,10 +769,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#preparepurchasepayment" class="md-nav__link">
+  <a href="#preparepurchase" class="md-nav__link">
     <span class="md-ellipsis">
       
-        preparePurchasePayment
+        preparePurchase
       
     </span>
   </a>
@@ -802,10 +802,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#preparerechargepayment" class="md-nav__link">
+  <a href="#preparerecharge" class="md-nav__link">
     <span class="md-ellipsis">
       
-        prepareRechargePayment
+        prepareRecharge
       
     </span>
   </a>
@@ -813,10 +813,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#preparerefundpayment" class="md-nav__link">
+  <a href="#preparerefund" class="md-nav__link">
     <span class="md-ellipsis">
       
-        prepareRefundPayment
+        prepareRefund
       
     </span>
   </a>
@@ -995,16 +995,19 @@
 <hr />
 <h2 id="metodos-principais">🟦 Métodos Principais<a class="headerlink" href="#metodos-principais" title="Permanent link">&para;</a></h2>
 <hr />
-<h3 id="preparepurchasepayment">preparePurchasePayment<a class="headerlink" href="#preparepurchasepayment" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><span class="x">preparePurchasePayment(int $amount, array $options = [])</span>
+<h3 id="preparepurchase">preparePurchase<a class="headerlink" href="#preparepurchase" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="x">preparePurchase(int $amount, array $billing = [])</span>
 </code></pre></div>
 <p>Prepara um pagamento 3DS.</p>
 <h3 id="parametros">Parâmetros:<a class="headerlink" href="#parametros" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>amount</strong> – valor em escudos (inteiro)</li>
-<li><strong>options.user</strong> – dados do cliente para 3DS</li>
-<li><strong>options.orderId</strong> – opcional</li>
-<li><strong>options.currency</strong> – padrão CVE</li>
+<li><strong>options.user</strong> – dados do cliente para 3DS (<code>id</code>, <code>created_at</code>, <code>updated_at</code>, <code>suspicious</code>, <code>phone</code>, <code>mobilePhoneCC</code>, <code>workPhoneCC</code>, etc.)</li>
+<li><strong>options.email</strong> - email do cliente</li>
+<li><strong>options.billAddrCountry</strong> -  country</li>
+<li><strong>options.billAddrCity</strong> - city</li>
+<li><strong>options.billAddrLine1</strong> - address</li>
+<li><strong>options.billAddrPostCode</strong> -  postal Code (zip)</li>
 </ul>
 <hr />
 <h3 id="prepareservicepayment">prepareServicePayment<a class="headerlink" href="#prepareservicepayment" title="Permanent link">&para;</a></h3>
@@ -1012,13 +1015,13 @@
 </code></pre></div>
 <p>Pagamentos de serviços.</p>
 <hr />
-<h3 id="preparerechargepayment">prepareRechargePayment<a class="headerlink" href="#preparerechargepayment" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><span class="x">prepareRechargePayment(int $amount, string $rechargeCode)</span>
+<h3 id="preparerecharge">prepareRecharge<a class="headerlink" href="#preparerecharge" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="x">prepareRecharge(int $amount, string $rechargeCode)</span>
 </code></pre></div>
 <p>Fluxo de recargas.</p>
 <hr />
-<h3 id="preparerefundpayment">prepareRefundPayment<a class="headerlink" href="#preparerefundpayment" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><span class="x">prepareRefundPayment(string $transactionId, int $amount)</span>
+<h3 id="preparerefund">prepareRefund<a class="headerlink" href="#preparerefund" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="x">prepareRefund(string $transactionId, int $amount)</span>
 </code></pre></div>
 <p>Fluxo de reembolso (refund).</p>
 <hr />

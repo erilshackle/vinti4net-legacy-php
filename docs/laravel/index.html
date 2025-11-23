@@ -67,7 +67,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="orange" data-md-color-accent="indigo">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="orange" data-md-color-accent="teal">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -125,13 +125,13 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="orange" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="orange" data-md-color-accent="teal"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
     
   
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="orange"  aria-hidden="true"  type="radio" name="__palette" id="__palette_1">
     
   
 </form>
@@ -821,7 +821,7 @@ VINTI4NET_ENDPOINT=https://mc.vinti4net.cv/BizMPIOnUsSisp/CardPayment
 <div class="highlight"><pre><span></span><code><span class="x">public function purchase()</span>
 <span class="x">{</span>
 <span class="x">    $html = $this-&gt;vinti4</span>
-<span class="x">        -&gt;preparePurchasePayment(1500, [</span>
+<span class="x">        -&gt;preparePurchase(1500, [</span>
 <span class="x">            &#39;email&#39; =&gt; &#39;cliente@example.com&#39;,</span>
 <span class="x">            &#39;billAddrCountry&#39; =&gt; &#39;132&#39;,</span>
 <span class="x">            &#39;billAddrCity&#39; =&gt; &#39;Praia&#39;,</span>
@@ -829,7 +829,7 @@ VINTI4NET_ENDPOINT=https://mc.vinti4net.cv/BizMPIOnUsSisp/CardPayment
 <span class="x">            &#39;billAddrPostCode&#39; =&gt; &#39;7600&#39;,</span>
 <span class="x">            &#39;mobilePhone&#39; =&gt; &#39;+23899123456&#39;,</span>
 <span class="x">        ])</span>
-<span class="x">        -&gt;createPaymentForm(route(&#39;vinti4net.callback&#39;), &#39;PEDIDO-123&#39;);</span>
+<span class="x">        -&gt;createPaymentForm(route(&#39;vinti4net.callback&#39;), &#39;pt&#39;);</span>
 
 <span class="x">    return response($html);</span>
 <span class="x">}</span>
@@ -843,7 +843,7 @@ VINTI4NET_ENDPOINT=https://mc.vinti4net.cv/BizMPIOnUsSisp/CardPayment
 <span class="x">{</span>
 <span class="x">    $html = $this-&gt;vinti4</span>
 <span class="x">        -&gt;prepareServicePayment(2500, 123, 456789)</span>
-<span class="x">        -&gt;createPaymentForm(route(&#39;vinti4net.callback&#39;), &#39;SERVICO-555&#39;);</span>
+<span class="x">        -&gt;createPaymentForm(route(&#39;vinti4net.callback&#39;), &#39;pt&#39;);</span>
 
 <span class="x">    return response($html);</span>
 <span class="x">}</span>
@@ -853,8 +853,8 @@ VINTI4NET_ENDPOINT=https://mc.vinti4net.cv/BizMPIOnUsSisp/CardPayment
 <div class="highlight"><pre><span></span><code><span class="x">public function recharge()</span>
 <span class="x">{</span>
 <span class="x">    $html = $this-&gt;vinti4</span>
-<span class="x">        -&gt;prepareRechargePayment(500, 220, 990123456)</span>
-<span class="x">        -&gt;createPaymentForm(route(&#39;vinti4net.callback&#39;), &#39;RECARGA-001&#39;);</span>
+<span class="x">        -&gt;prepareRecharge(500, 220, 990123456)</span>
+<span class="x">        -&gt;createPaymentForm(route(&#39;vinti4net.callback&#39;), &#39;pt&#39;);</span>
 
 <span class="x">    return response($html);</span>
 <span class="x">}</span>
@@ -864,14 +864,12 @@ VINTI4NET_ENDPOINT=https://mc.vinti4net.cv/BizMPIOnUsSisp/CardPayment
 <div class="highlight"><pre><span></span><code><span class="x">public function refund()</span>
 <span class="x">{</span>
 <span class="x">    $html = $this-&gt;vinti4</span>
-<span class="x">        -&gt;prepareRefundPayment(</span>
+<span class="x">        -&gt;prepareRefund(</span>
 <span class="x">            1500,</span>
-<span class="x">            &#39;PEDIDO-123&#39;,</span>
-<span class="x">            &#39;SESSAO-123&#39;,</span>
 <span class="x">            &#39;TID987654321&#39;,</span>
 <span class="x">            202401</span>
 <span class="x">        )</span>
-<span class="x">        -&gt;createPaymentForm(route(&#39;vinti4net.callback&#39;), &#39;REFUND-01&#39;);</span>
+<span class="x">        -&gt;createPaymentForm(route(&#39;vinti4net.callback&#39;), &#39;pt&#39;);</span>
 
 <span class="x">    return response($html);</span>
 <span class="x">}</span>

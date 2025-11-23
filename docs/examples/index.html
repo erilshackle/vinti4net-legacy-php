@@ -69,7 +69,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="orange" data-md-color-accent="indigo">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="orange" data-md-color-accent="teal">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -127,13 +127,13 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="orange" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="orange" data-md-color-accent="teal"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
     
   
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="orange"  aria-hidden="true"  type="radio" name="__palette" id="__palette_1">
     
   
 </form>
@@ -545,7 +545,7 @@
 <span class="x">$vinti4 = new Vinti4NetLegacy(&quot;POS123&quot;, &quot;ABCDEF123456789&quot;);</span>
 
 <span class="x">// Prepara cobrança 3D Secure</span>
-<span class="x">$vinti4-&gt;preparePurchasePayment(</span>
+<span class="x">$vinti4-&gt;preparePurchase(</span>
 <span class="x">    1500, // valor em escudos</span>
 <span class="x">    [</span>
 <span class="x">        &#39;email&#39; =&gt; &#39;cliente@example.com&#39;,</span>
@@ -557,10 +557,12 @@
 <span class="x">    ]</span>
 <span class="x">);</span>
 
+<span class="x">$vinti4-&gt;setMerchant(&#39;REF_1234&#39;);</span>
+
 <span class="x">// Cria formulário HTML de pagamento</span>
 <span class="x">echo $vinti4-&gt;createPaymentForm(</span>
 <span class="x">    &quot;https://seusite.com/callback&quot;,</span>
-<span class="x">    &quot;PEDIDO-123&quot;</span>
+<span class="x">    &quot;pt&quot;</span>
 <span class="x">);</span>
 </code></pre></div>
 <p>➡ O formulário gerado será auto‐submetido ao SISP.</p>
@@ -579,7 +581,7 @@
 
 <span class="x">echo $vinti4-&gt;createPaymentForm(</span>
 <span class="x">    &quot;https://seusite.com/callback&quot;,</span>
-<span class="x">    &quot;SERVICO-555&quot;</span>
+<span class="x">    &quot;pt&quot;</span>
 <span class="x">);</span>
 </code></pre></div>
 <hr />
@@ -589,15 +591,15 @@
 
 <span class="x">$vinti4 = new Vinti4NetLegacy(&quot;POS123&quot;, &quot;ABCDEF123456789&quot;);</span>
 
-<span class="x">$vinti4-&gt;prepareRechargePayment(</span>
+<span class="x">$vinti4-&gt;prepareRecharge(</span>
 <span class="x">    500,      // valor</span>
-<span class="x">    220,      // entidade</span>
+<span class="x">    10001,    // entidade</span>
 <span class="x">    990123456 // referência de recarga</span>
 <span class="x">);</span>
 
 <span class="x">echo $vinti4-&gt;createPaymentForm(</span>
 <span class="x">    &quot;https://seusite.com/callback&quot;,</span>
-<span class="x">    &quot;RECARGA-001&quot;</span>
+<span class="x">    &quot;pt&quot;</span>
 <span class="x">);</span>
 </code></pre></div>
 <hr />
@@ -609,18 +611,15 @@
 
 <span class="x">$vinti4-&gt;prepareRefundPayment(</span>
 <span class="x">    1500,              // valor original</span>
-<span class="x">    &quot;PEDIDO-123&quot;,      // merchantRef original</span>
-<span class="x">    &quot;SESSAO-123&quot;,      // session original</span>
 <span class="x">    &quot;TID987654321&quot;,    // ID da transação original</span>
-<span class="x">    202401             // clearingPeriod recebido na compra</span>
+<span class="x">    2024               // clearingPeriod recebido na compra</span>
 <span class="x">);</span>
 
 <span class="x">echo $vinti4-&gt;createPaymentForm(</span>
 <span class="x">    &quot;https://seusite.com/callback-refund&quot;,</span>
-<span class="x">    &quot;REFUND-01&quot;</span>
+<span class="x">    &quot;pt&quot;</span>
 <span class="x">);</span>
 </code></pre></div>
-<hr />
 <hr />
 <h1 id="5-exemplo-callback-processamento-do-retorno-sisp-seu-servidor">🟦 5. Exemplo — Callback / Processamento do Retorno (SISP → Seu servidor)<a class="headerlink" href="#5-exemplo-callback-processamento-do-retorno-sisp-seu-servidor" title="Permanent link">&para;</a></h1>
 <p>Este script deve estar na URL que você configurou em:</p>
