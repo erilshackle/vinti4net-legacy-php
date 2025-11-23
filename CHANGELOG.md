@@ -2,6 +2,21 @@
 
 Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
+## [v2.0.0] - 2025-11-23
+
+### Added
+- Add setMerchant method and refactor payment method names for consistency
+- Add .gitignore and mkdocs.yml to export-ignore
+- Update .gitattributes to ignore additional folders
+
+### Changed
+- Rename payment methods for consistency
+- Refactor refund and payment form methods
+- Refactor fingerprintRequest and fingerprintResponse methods
+- Update .gitattributes to ignore more files
+- Merge branch 'main' of https://github.com/erilshackle/vinti4net-legacy-php
+- changelog
+
 ## [v1.1.0] - 2025-11-16
 
 ### Changed
