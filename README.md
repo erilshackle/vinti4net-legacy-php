@@ -4,6 +4,9 @@
 
 > ##### ⚠️ Considere usar **[erilshk\vinti4net](github.com/erilshackle/vinti4net-php)** para **php +8.1**
 
+---
+
+
 Biblioteca PHP **estável** e compativel com `erilshk\vinti4net` para integração com o **Vinti4Net (SISP – Cabo Verde)**, com suporte total a:
 
 * **Compras (3D Secure)**
