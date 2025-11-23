@@ -31,7 +31,7 @@ class Vinti4NetLegacyTest extends TestCase
             'mobilePhone' => '+23899123456'
         ];
 
-        $result = $this->vinti4->preparePurchasePayment(1500, $billing);
+        $result = $this->vinti4->preparePurchase(1500, $billing);
         $this->assertInstanceOf(Vinti4NetLegacy::class, $result);
 
         $html = $this->vinti4->createPaymentForm('https://example.com/callback', 'TEST-PURCHASE');
@@ -49,7 +49,7 @@ class Vinti4NetLegacyTest extends TestCase
 
     public function testPrepareRechargePayment()
     {
-        $result = $this->vinti4->prepareRechargePayment(500, 220, 990123456);
+        $result = $this->vinti4->prepareRecharge(500, 220, 990123456);
         $this->assertInstanceOf(Vinti4NetLegacy::class, $result);
 
         $html = $this->vinti4->createPaymentForm('https://example.com/callback', 'TEST-RECHARGE');
@@ -58,7 +58,7 @@ class Vinti4NetLegacyTest extends TestCase
 
     public function testPrepareRefundPayment()
     {
-        $result = $this->vinti4->prepareRefundPayment(1500, 'REF123', 'SESS123', 'TID987', 202401);
+        $result = $this->vinti4->prepareRefund(1500,  'TID987', 2401);
         $this->assertInstanceOf(Vinti4NetLegacy::class, $result);
 
         $html = $this->vinti4->createPaymentForm('https://example.com/callback', 'TEST-REFUND');
@@ -135,7 +135,7 @@ class Vinti4NetLegacyTest extends TestCase
 
     public function testPreparePaymentRequestThrowsExceptionOnMultipleRequests()
     {
-        $this->vinti4->preparePurchasePayment(100, [
+        $this->vinti4->preparePurchase(100, [
             'email' => 'teste@example.com',
             'billAddrCountry' => '132',
             'billAddrCity' => 'Cidade',
@@ -144,7 +144,7 @@ class Vinti4NetLegacyTest extends TestCase
         ]);
 
         $this->expectException(\Exception::class);
-        $this->vinti4->preparePurchasePayment(200, [
+        $this->vinti4->preparePurchase(200, [
             'email' => 'teste2@example.com',
             'billAddrCountry' => '132',
             'billAddrCity' => 'Cidade',
@@ -203,7 +203,7 @@ class Vinti4NetLegacyTest extends TestCase
             ]
         ];
 
-        $this->vinti4->preparePurchasePayment(100, $billing);
+        $this->vinti4->preparePurchase(100, $billing);
         $html = $this->vinti4->createPaymentForm('https://example.com/callback');
         $this->assertStringContainsString('<form', $html);
     }

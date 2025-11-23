@@ -164,6 +164,19 @@ class Vinti4NetLegacy
     }
 
     /**
+     * Sets the merchant reference and session for.
+     * @param string $ref       merchantRef (15 chars max)
+     * @param mixed $session    merchantSession (15 chars max)
+     * @return self
+     */
+    public function setMerchant($ref, $session = null){
+        return $this->setRequestParams([
+            'merchantRef' => $ref,
+            'merchantSession' => $session,
+        ]);
+    }
+
+    /**
      * Prepares a **purchase (3DS)** payment request.
      *
      * This method sets up all the necessary data to initiate a purchase transaction with 3D Secure authentication.
@@ -256,7 +269,7 @@ class Vinti4NetLegacy
      * Prepares a **refund** payment request.
      *
      * This method is used to reverse a previously approved transaction.
-     * It requires the merchant ID, session, original transaction ID, and clearing period.
+     * It requires the original transaction ID, and clearing period from  the successful transaction.
      *
      * @param float|int  $amount          Refund amount (must be an integer in currency units, no decimals for SISP).
      * @param string      $transactionID   ID of the transaction to be refunded.
