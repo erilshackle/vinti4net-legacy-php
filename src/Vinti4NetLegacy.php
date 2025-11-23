@@ -259,8 +259,6 @@ class Vinti4NetLegacy
      * It requires the merchant ID, session, original transaction ID, and clearing period.
      *
      * @param float|int  $amount          Refund amount (must be an integer in currency units, no decimals for SISP).
-     * @param string      $merchantRef     Unique identifier of the original order in the merchant system.
-     * @param string      $merchantSession Identifier of the original order session.
      * @param string      $transactionID   ID of the transaction to be refunded.
      * @param string|int  $clearingPeriod  Clearing period related to the refund.
      *
@@ -268,15 +266,13 @@ class Vinti4NetLegacy
      *
      * @throws InvalidArgumentException If any required data is missing or invalid.
      */
-    public function prepareRefundPayment($amount, $merchantRef, $merchantSession, $transactionID, $clearingPeriod)
+    public function prepareRefundPayment($amount, $transactionID, $clearingPeriod)
     {
         $this->preparePaymentRequest([
             'transactionCode'   => self::TRANSACTION_TYPE_REFUND,
             'amount'            => $amount,
             'clearingPeriod'    => $clearingPeriod,
-            'transactionID'     => $transactionID,
-            'merchantRef'       => $merchantRef,
-            'merchantSession'   => $merchantSession,
+            'transactionID'     => $transactionID
         ]);
         
         $this->request['reversal'] = 'R';
@@ -293,17 +289,17 @@ class Vinti4NetLegacy
      * to the gateway URL.
      *
      * @param string      $responseUrl   URL to which the gateway should send the transaction response.
-     * @param string|null $merchantRef   Optional. Unique merchant reference to identify the transaction.
+     * @param string      $lang          languageMessages. example: 'pt', 'en', 'fr'
      *
      * @return string HTML markup of the form with auto-submit.
      *
      * @throws InvalidArgumentException If any required parameter is missing or invalid.
      */
-    public function createPaymentForm($responseUrl, $merchantRef = null)
+    public function createPaymentForm($responseUrl, $lang = 'pt')
     {
         $this->request['urlMerchantResponse'] = $responseUrl;
-        if ($merchantRef !== null) {
-            $this->request['merchantRef'] = $merchantRef;
+        if ($lang !== null) {
+            $this->request['languageMessages'] = $lang;
         }
 
         $paymentData = $this->processRequest($this->request);
