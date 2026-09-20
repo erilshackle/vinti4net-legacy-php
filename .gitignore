@@ -4,6 +4,7 @@
 
 # IDEs e editores
 /.vscode/
+.venv
 
 # Sistema operacional
 .DS_Store
@@ -11,4 +12,4 @@ Thumbs.db
 
 # Arquivos do Material Docs
 /site/
-/mkdocs
+/docs
