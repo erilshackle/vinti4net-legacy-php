@@ -1,9 +1,6 @@
 <?php
+// Autoload do Composer (se você instalou dependências via composer)
+require_once __DIR__ . '/../vendor/autoload.php';
 
-$autoload = __DIR__ . '/../vendor/autoload.php';
-
-if (file_exists($autoload)) {
-    require_once $autoload;
-} else {
-    require_once __DIR__ . '/../src/Vinti4Net.php';
-}
+// Ou, se não usa Composer, inclua a classe manualmente:
+require_once __DIR__ . '/../src/Vinti4NetLegacy.php';

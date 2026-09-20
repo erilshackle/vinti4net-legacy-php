@@ -1,6 +1,6 @@
 {
     "name": "erilshk/vinti4net-legacy",
-    "description": "Legacy PHP SDK for Vinti4Net (SISP Cabo Verde), compatible with PHP 5.6+.",
+    "description": "Legacy PHP SDK for Vinti4Net (SISP), compatible with PHP 5.6+.",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -14,12 +14,12 @@
     "require": {
         "php": ">=5.6"
     },
+    "conflict": {
+        "erilshk/vinti4net": "<=2.0"
+    },
     "autoload": {
-        "psr-4": {
-            "Erilshk\\Vinti4NetLegacy\\": "src/"
-        },
         "classmap": [
-            "src/Vinti4Net.php"
+            "src/Vinti4NetLegacy.php"
         ]
     },
     "autoload-dev": {

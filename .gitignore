@@ -12,3 +12,4 @@ Thumbs.db
 
 # Arquivos do Material Docs
 /site/
+.phpunit.result.cache

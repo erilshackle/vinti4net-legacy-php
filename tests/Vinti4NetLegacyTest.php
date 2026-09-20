@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use Erilshk\Vinti4NetLegacy\Vinti4Exception;
-use Erilshk\Vinti4NetLegacy\Vinti4Net;
+use \Vinti4Exception;
+use \Vinti4Net;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 
@@ -607,7 +607,7 @@ final class Vinti4NetLegacyTest extends TestCase
         $this->vinti4->prepareServicePayment(
             100,
             0,
-            '123456'
+            '12E4S'
         );
 
         $this->expectException(Vinti4Exception::class);

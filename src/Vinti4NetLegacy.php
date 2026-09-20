@@ -1,6 +1,5 @@
 <?php
 
-namespace Erilshk\Vinti4NetLegacy;
 
 
 /**
@@ -41,7 +40,7 @@ namespace Erilshk\Vinti4NetLegacy;
 /**
  * Exception thrown for invalid Vinti4Net configuration, requests or responses.
  */
-class Vinti4Exception extends \RuntimeException {}
+class Vinti4Exception extends RuntimeException {}
 
 /**
  * Vinti4Net Legacy Standalone SDK
