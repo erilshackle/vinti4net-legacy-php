@@ -203,7 +203,9 @@ test('Invalid amount is rejected', function () {
     $vinti4 = newVinti4();
 
     try {
-        $vinti4->preparePurchase(0);
+        $vinti4
+            ->preparePurchase(0)
+            ->createPaymentForm('https://example.com/callback');
     } catch (Exception $e) {
         return true;
     }
