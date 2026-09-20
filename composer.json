@@ -1,6 +1,6 @@
 {
     "name": "erilshk/vinti4net-legacy",
-    "description": "SDK Legacy de integração com o Vinti4Net (SISP Cabo Verde) para pagamentos online, compatível com PHP 5.6+.",
+    "description": "Legacy PHP SDK for Vinti4Net (SISP Cabo Verde), compatible with PHP 5.6+.",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -14,24 +14,21 @@
     "require": {
         "php": ">=5.6"
     },
-    "conflict": {
-        "erilshk/vinti4net" : "<2.0"
-    },
     "autoload": {
         "psr-4": {
-            "Erilshk\\Vinti4Net\\": "src/"
+            "Erilshk\\Vinti4NetLegacy\\": "src/"
         },
         "classmap": [
-            "src/Vinti4NetLegacy.php"
+            "src/Vinti4Net.php"
         ]
     },
     "autoload-dev": {
         "psr-4": {
-            "Erilshk\\Vinti4Net\\Tests\\": "tests/"
+            "Erilshk\\Vinti4NetLegacy\\Tests\\": "tests/"
         }
     },
     "require-dev": {
-        "phpunit/phpunit": "^9.6 || ^10.0"
+        "phpunit/phpunit": "^5.7 || ^9.6 || ^10.5 || ^11.0 || ^12.0"
     },
     "scripts": {
         "test": "phpunit"

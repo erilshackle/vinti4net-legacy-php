@@ -1,17 +1,16 @@
 <?php
 
-namespace Erilshk\Vinti4Net;
+namespace Erilshk\Vinti4NetLegacy;
 
-use Exception;
-use InvalidArgumentException;
 
 /**
- * Vinti4Net Legacy SDK
+ * Vinti4Net Legacy Standalone SDK
  *
- * PHP SDK for integrating with **Vinti4Net (SISP – Cabo Verde)** to process
- * online payments, service payments, mobile top-ups, and refunds.
+ * Standalone PHP integration for Vinti4Net (SISP - Cabo Verde), providing
+ * payment processing without requiring Composer or external dependencies.
  *
- * This legacy implementation is fully compatible with **PHP 5.6+**.
+ * This legacy implementation is compatible with PHP 5.6+ and provides
+ * a single-file integration intended for projects running older PHP versions.
  *
  * Supported operations:
  * - Purchase (3D Secure)
@@ -20,715 +19,1034 @@ use InvalidArgumentException;
  * - Refund
  *
  * Main features:
- * - Generates auto-submit HTML forms for redirecting the customer to Vinti4Net
- * - Validates and parses gateway responses
- * - Fingerprint generation for request and response integrity
- * - Billing data normalization for 3DS / fraud-prevention
- * - Dynamic Currency Conversion (DCC) support
+ * - Auto-submit HTML forms for redirecting customers to Vinti4Net
+ * - Request and response fingerprint generation and validation
+ * - Gateway response processing with normalized array results
+ * - Billing data normalization for 3D Secure transactions
+ * - Dynamic Currency Conversion (DCC) response support
+ * - Merchant reference and session generation
+ * - No Composer or external dependencies required
+ *
+ * Responses are returned as arrays and receipt rendering is intentionally
+ * not included in this standalone implementation.
+ *
+ * This is a community integration and is not an official SISP SDK.
  *
  * @package   Erilshk\Vinti4Net
  * @author    Erilando TS Carvalho
  * @license   MIT
- * @version   1.0
+ * @version   2.0.0
  */
-class Vinti4NetLegacy
+
+/**
+ * Exception thrown for invalid Vinti4Net configuration, requests or responses.
+ */
+class Vinti4Exception extends \RuntimeException {}
+
+/**
+ * Vinti4Net Legacy Standalone SDK
+ *
+ * Standalone PHP integration for Vinti4Net (SISP – Cabo Verde),
+ * compatible with PHP 5.6+.
+ * 
+ * Provides a fluent API for preparing transactions, generating the
+ * auto-submit payment form and processing responses returned by SISP.
+ *
+ * @package Erilshk\Vinti4NetLegacy
+ * @author  Erilando TS Carvalho
+ * @license MIT
+ * @version 2.0.0
+ */
+final class Vinti4Net
 {
-    /** @var string Default Vinti4Net production URL */
-    const DEFAULT_BASE_URL = "https://mc.vinti4net.cv/BizMPIOnUsSisp/CardPayment";
+    const DEFAULT_BASE_URL = 'https://mc.vinti4net.cv/BizMPIOnUsSisp';
 
-    /** @var string Payment type: Purchase */
     const TRANSACTION_TYPE_PURCHASE = '1';
-
-    /** @var string Payment type: Service */
-    const TRANSACTION_TYPE_SERVICE  = '2';
-
-    /** @var string Payment type: Recharge */
+    const TRANSACTION_TYPE_SERVICE = '2';
     const TRANSACTION_TYPE_RECHARGE = '3';
+    const TRANSACTION_TYPE_REFUND = '4';
 
-    /** @var string Payment type: Refund */
-    const TRANSACTION_TYPE_REFUND   = '4';
+    const STATUS_SUCCESS = 'SUCCESS';
+    const STATUS_ERROR = 'ERROR';
+    const STATUS_CANCELLED = 'CANCELLED';
+    const STATUS_INVALID_FINGERPRINT = 'INVALID_FINGERPRINT';
 
-    /** @var string Default currency code (CVE – Cape Verde Escudo) */
     const CURRENCY_CVE = '132';
-
-    /** @var array Message types that represent successful transactions */
+    const ENDPOINT_PATH = '/CardPayment';
     const SUCCESS_MESSAGE_TYPES = ['8', '10', 'P', 'M'];
 
-    /** @var string POS Identifier provided by SISP */
+    /** @var string POS identifier provided by SISP. */
     private $posID;
 
-    /** @var string POS authentication code provided by SISP */
+    /** @var string POS authentication code provided by SISP. */
     private $posAuthCode;
 
-    /** @var string Gateway base URL */
-    private $baseUrl;
+    /** @var string|null Custom CardPayment endpoint. */
+    private $endpoint;
 
-    /** @var array Internal request data structure */
-    private $request = [];
+    /** @var array<string, mixed> Currently prepared transaction data. */
+    private $request = array();
 
-    /** @var bool Indicates if the payment request was already prepared */
+    /** @var bool Whether a transaction has been prepared. */
     private $prepared = false;
 
     /**
-     * Constructor
+     * Create a standalone Vinti4Net client.
      *
-     * Initializes a new Vinti4Net client with the required POS credentials.
+     * @param string      $posID       POS identifier provided by SISP.
+     * @param string      $posAuthCode POS authentication code provided by SISP.
+     * @param string|null $endpoint    Optional custom CardPayment endpoint.
      *
-     * @param string      $posID        POS ID provided by SISP.
-     * @param string      $posAuthCode  POS authentication code provided by SISP.
-     * @param string|null $endpoint     Optional base endpoint URL. Defaults to the production gateway.
-     *
-     * @example
-     * $vinti4 = new Vinti4NetLegacy('POS123', 'ABCD1234');
-     *
-     * @return void
+     * @throws Vinti4Exception If credentials are empty or the endpoint is invalid.
      */
-    public function __construct($posID, $posAuthCode, $endpoint = null)
-    {
+    public function __construct(
+        $posID,
+        $posAuthCode,
+        $endpoint = null
+    ) {
+        $posID = trim($posID);
+        $posAuthCode = trim($posAuthCode);
+        $endpoint = $endpoint !== null ? trim($endpoint) : null;
+
+        if ($posID === '') {
+            throw new Vinti4Exception('O POS ID não pode estar vazio.');
+        }
+
+        if ($posAuthCode === '') {
+            throw new Vinti4Exception('O código de autenticação não pode estar vazio.');
+        }
+
+        if ($endpoint !== null && filter_var($endpoint, FILTER_VALIDATE_URL) === false) {
+            throw new Vinti4Exception('A URL base da SISP deve ser válida.');
+        }
+
         $this->posID = $posID;
         $this->posAuthCode = $posAuthCode;
-        $this->baseUrl = $endpoint ? $endpoint : self::DEFAULT_BASE_URL;
+        $this->endpoint = $endpoint;
+    }
+
+    /**
+     * Generate a 15-character merchant reference.
+     *
+     * Format: R + ymdHis + two random alphanumeric characters.
+     *
+     * @return string
+     */
+    public static function generateMerchantRef()
+    {
+        $characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $suffix = $characters[self::secureRandomInt(0, 35)] . $characters[self::secureRandomInt(0, 35)];
+
+        return 'R' . date('ymdHis') . $suffix;
     }
 
 
+    /** PHP 5.6 compatible random integer helper. */
     /**
-     * Sets additional optional parameters for the payment request.
+     * Generate a random integer while remaining compatible with PHP 5.6.
      *
-     * This method allows manually configuring values that are not automatically
-     * set during payment preparation. Only recognized and allowed keys may be provided —
-     * any invalid key will throw an InvalidArgumentException.
+     * Uses random_int() when available, OpenSSL on PHP 5.6 when possible,
+     * and falls back to mt_rand() as a last resort.
      *
-     * The list of allowed fields reflects the parameters accepted by SISP/Vinti4Net:
-     *
-     * - merchantRef          Unique order identifier generated by the merchant.
-     * - merchantSession      Merchant session ID.
-     * - languageMessages     Language for messages displayed to the user (e.g., 'en', 'pt', 'fr').
-     * - entityCode           Payment entity (for services or top-ups).
-     * - referenceNumber      Payment reference (for services or top-ups).
-     * - timeStamp            Request date/time (Y-m-d H:i:s).
-     * - billing              Full billing / 3DS customer data.
-     * - currency             Currency code (ISO3 or numeric). Automatically converted if ISO3.
-     * - acctID               Customer account identifier.
-     * - acctInfo             3DS account history data.
-     * - addrMatch            Indicates whether delivery address matches billing address.
-     * - billAddrCountry      Billing country.
-     * - billAddrCity         Billing city.
-     * - billAddrLine1        Address line 1 (required for purchases).
-     * - billAddrPostCode     Postal code.
-     * - email                Customer email address.
-     * - clearingPeriod       Clearing period (used for REFUND requests).
-     *
-     * If the "currency" parameter is provided as an ISO3 string (e.g., "CVE", "EUR", "USD"),
-     * it will be automatically converted to the corresponding numeric code.
-     *
-     * @param array $params  List of optional parameters to set.
-     *
-     * @return $this  Returns the instance to allow method chaining.
-     *
-     * @throws InvalidArgumentException If any provided parameter is not allowed.
+     * @param int $min Minimum value.
+     * @param int $max Maximum value.
+     * @return int
      */
-    public function setRequestParams(array $params)
-
+    private static function secureRandomInt($min, $max)
     {
-        $allowed = [
-            'merchantRef',
-            'merchantSession',
-            'languageMessages',
-            'entityCode',
-            'referenceNumber',
-            'timeStamp',
-            'billing',
-            'currency',
-            'acctID',
-            'acctInfo',
-            'addrMatch',
+        if (function_exists('random_int')) {
+            return random_int($min, $max);
+        }
+
+        $range = $max - $min;
+        if ($range <= 0) {
+            return $min;
+        }
+
+        if (function_exists('openssl_random_pseudo_bytes')) {
+            $limit = 0;
+            do {
+                $bytes = openssl_random_pseudo_bytes(4, $strong);
+                if ($bytes !== false && $strong) {
+                    $value = unpack('N', $bytes);
+                    $value = $value[1] & 0x7fffffff;
+                    $limit = 0x7fffffff - (0x7fffffff % ($range + 1));
+                } else {
+                    $value = false;
+                }
+            } while ($value !== false && $value >= $limit);
+
+            if ($value !== false) {
+                return $min + ($value % ($range + 1));
+            }
+        }
+
+        return mt_rand($min, $max);
+    }
+
+    /**
+     * Configure the merchant reference and session.
+     *
+     * SISP requires both values to contain exactly 15 characters. When the
+     * session is omitted, a timestamp-based merchant session is generated.
+     *
+     * @param string      $reference Merchant reference.
+     * @param string|null $session   Optional merchant session.
+     * @return $this
+     */
+    public function setMerchant($reference, $session = null)
+    {
+        $this->request['merchantRef'] = trim($reference);
+        $this->request['merchantSession'] = $session !== null ? trim($session) : 'S' . date('YmdHis');
+        return $this;
+    }
+
+    /**
+     * Prepare a purchase transaction.
+     *
+     * Billing data is optional. When provided, it is normalized and encoded
+     * into the purchaseRequest field used for 3D Secure processing. Friendly
+     * billing names and original SISP field names are accepted.
+     *
+     * @param int|float|string $amount Transaction amount.
+     * @param array $billing Optional billing / 3D Secure data.
+     * @param string|int $currency ISO 4217 alphabetic or numeric currency.
+     * @return $this
+     */
+    public function preparePurchase(
+        $amount,
+        $billing = [],
+        $currency = 'CVE'
+    ) {
+        $this->prepareRequest([
+            'transactionCode' => self::TRANSACTION_TYPE_PURCHASE,
+            'amount' => $amount,
+            'currency' => $currency,
+            'billing' => $billing,
+        ]);
+
+        return $this;
+    }
+
+    /** Prepare a service payment. */
+    /**
+     * Prepare a service payment.
+     *
+     * @param int|float|string $amount Transaction amount.
+     * @param int|string $entity SISP entity code.
+     * @param string|int $number Payment reference number.
+     * @return $this
+     */
+    public function prepareServicePayment(
+        $amount,
+        $entity,
+        $number
+    ) {
+        $this->prepareRequest([
+            'transactionCode' => self::TRANSACTION_TYPE_SERVICE,
+            'amount' => $amount,
+            'entityCode' => $entity,
+            'referenceNumber' => $number,
+        ]);
+
+        return $this;
+    }
+
+    /** Prepare a recharge payment. */
+    /**
+     * Prepare a recharge / top-up transaction.
+     *
+     * @param int|float|string $amount Recharge amount.
+     * @param int|string $entity SISP entity code.
+     * @param string|int $number Recharge reference number.
+     * @return $this
+     */
+    public function prepareRecharge(
+        $amount,
+        $entity,
+        $number
+    ) {
+        $this->prepareRequest([
+            'transactionCode' => self::TRANSACTION_TYPE_RECHARGE,
+            'amount' => $amount,
+            'entityCode' => $entity,
+            'referenceNumber' => $number,
+        ]);
+
+        return $this;
+    }
+
+    /** Prepare a refund. */
+    /**
+     * Prepare a refund transaction.
+     *
+     * Refunds require the original SISP transaction identifier and clearing
+     * period and are submitted using transaction code 4 in CVE.
+     *
+     * @param int|float|string $amount Amount to refund.
+     * @param string $transactionID Original SISP transaction ID.
+     * @param string|int $clearingPeriod Original clearing period.
+     * @return $this
+     */
+    public function prepareRefund(
+        $amount,
+        $transactionID,
+        $clearingPeriod
+    ) {
+        $this->prepareRequest([
+            'transactionCode' => self::TRANSACTION_TYPE_REFUND,
+            'amount' => $amount,
+            'transactionID' => $transactionID,
+            'clearingPeriod' => $clearingPeriod,
+        ]);
+
+        return $this;
+    }
+
+    /**
+     * Generate an auto-submitting HTML payment form.
+     *
+     * The prepared transaction is validated, signed and converted into hidden
+     * HTML fields before submission to the configured Vinti4Net endpoint.
+     *
+     * @param string $responseUrl Merchant callback URL.
+     * @param string $lang Message language: pt, en or fr.
+     * @return string Complete auto-submit HTML document.
+     * @throws Vinti4Exception If no transaction is prepared or validation fails.
+     */
+    public function createPaymentForm($responseUrl, $lang = 'pt')
+    {
+        if (!$this->prepared) {
+            throw new Vinti4Exception('Nenhum pagamento preparado.');
+        }
+
+        $params = $this->request;
+        $params['languageMessages'] = strtolower(trim($lang));
+        $params['urlMerchantResponse'] = trim($responseUrl);
+
+        $prepared = ((isset($params['transactionCode']) ? $params['transactionCode'] : '')) === self::TRANSACTION_TYPE_REFUND
+            ? $this->prepareRefundRequest($params)
+            : $this->preparePaymentRequest($params);
+
+        $fields = $prepared['fields'];
+        $postUrl = $prepared['postUrl'];
+        $inputs = '';
+
+        foreach ($fields as $key => $value) {
+            if (is_array($value)) {
+                continue;
+            }
+
+            $name = htmlspecialchars((string) $key, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $value = htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $inputs .= "<input type=\"hidden\" name=\"{$name}\" value=\"{$value}\">\n";
+        }
+
+        $action = htmlspecialchars($postUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $processing = $params['languageMessages'] === 'pt'
+            ? 'Processando...'
+            : 'Processing...';
+
+        return <<<HTML
+<!doctype html>
+<html lang="{$params['languageMessages']}">
+<head>
+    <meta charset="UTF-8">
+    <title>Pagamento Vinti4Net</title>
+</head>
+<body onload="document.forms[0].submit()">
+    <form method="post" action="{$action}">
+{$inputs}    </form>
+    <p>{$processing}</p>
+</body>
+</html>
+HTML;
+    }
+
+    /**
+     * Process and normalize a response returned by SISP.
+     *
+     * Validates successful response fingerprints, detects cancellation, resolves
+     * provider errors, masks PAN data and extracts DCC information.
+     *
+     * @param array $postData Raw POST data received from SISP.
+     * @return array Normalized response with status, message, success, data,
+     *               dcc, debug, detail and operation.
+     * @throws Vinti4Exception If the response is empty or cannot be processed.
+     */
+    public function processResponse($postData)
+    {
+        if ($postData === []) {
+            throw new Vinti4Exception('A resposta da SISP está vazia.');
+        }
+
+        $messageType = trim((string) ((isset($postData['messageType']) ? $postData['messageType'] : '')));
+        $successType = in_array($messageType, self::SUCCESS_MESSAGE_TYPES, true);
+        $transactionSuccessful = false;
+
+
+        $transactionSuccessful =
+            // compra sucesso
+            ($successType && ((isset($postData['merchantResp']) ? $postData['merchantResp'] : '')) === 'C')
+            // estorno sucesso
+            || $messageType == '10';
+
+
+
+        $fingerprintValid = true;
+        $calculatedFingerprint = null;
+
+        if ($successType) {
+            $calculatedFingerprint = $this->fingerprintResponse($postData);
+            $receivedFingerprint = trim((string) ((isset($postData['resultFingerPrint']) ? $postData['resultFingerPrint'] : '')));
+            $fingerprintValid = $receivedFingerprint !== ''
+                && hash_equals($calculatedFingerprint, $receivedFingerprint);
+        }
+
+        if ($fingerprintValid === false) {
+            $status = self::STATUS_INVALID_FINGERPRINT;
+        } elseif (filter_var((isset($postData['UserCancelled']) ? $postData['UserCancelled'] : false), FILTER_VALIDATE_BOOLEAN)) {
+            $status = self::STATUS_CANCELLED;
+        } elseif ($transactionSuccessful) {
+            $status = self::STATUS_SUCCESS;
+        } else {
+            $status = self::STATUS_ERROR;
+        }
+
+        $operation = null;
+        switch ($messageType) {
+            case '10':
+                $operation = 'refund';
+                break;
+            case '8':
+                $operation = 'purchase';
+                break;
+            case 'P':
+                $operation = 'service_payment';
+                break;
+            case 'M':
+                $operation = 'recharge';
+                break;
+        }
+
+        if ($status === self::STATUS_CANCELLED) {
+            $message = 'Utilizador cancelou a transação.';
+        } elseif ($status === self::STATUS_SUCCESS) {
+            $message = $operation === 'refund'
+                ? 'Reembolso processado com sucesso.'
+                : 'Transação válida.';
+        } elseif ($status === self::STATUS_INVALID_FINGERPRINT) {
+            $message = 'Fingerprint inválido (verificar segurança).';
+        } else {
+            $message = 'Transação falhou.';
+
+            foreach (
+                [
+                    'merchantRespAdditionalErrorMessage',
+                    'merchantRespErrorDetail',
+                    'merchantRespErrorDescription',
+                ] as $field
+            ) {
+                $providerMessage = trim((string) (isset($postData[$field]) ? $postData[$field] : ''));
+
+                if ($providerMessage !== '') {
+                    $message = $providerMessage;
+                    break;
+                }
+            }
+        }
+
+        $dcc = $this->extractDcc($postData);
+        $debug = $fingerprintValid === false
+            ? [
+                'received' => (string) ((isset($postData['resultFingerPrint']) ? $postData['resultFingerPrint'] : '')),
+                'calculated' => (string) $calculatedFingerprint,
+            ]
+            : [];
+
+        $safeData = $postData;
+
+        if (isset($safeData['merchantRespPan'])) {
+            $pan = preg_replace('/\D+/', '', (string) $safeData['merchantRespPan']);
+            $pan = $pan === null ? '' : $pan;
+            $safeData['merchantRespPan'] = $pan !== '' && $pan !== '0'
+                ? '•••• ' . substr($pan, -4)
+                : null;
+        }
+
+        return [
+            'status' => $status,
+            'message' => $message,
+            'success' => $status === self::STATUS_SUCCESS,
+            'data' => $safeData,
+            'dcc' => $dcc,
+            'debug' => $debug,
+            'detail' => isset($postData['merchantRespErrorDetail'])
+                ? (string) $postData['merchantRespErrorDetail']
+                : null,
+            'operation' => $operation,
+        ];
+    }
+
+    /** Return the currently prepared transaction data. */
+    /**
+     * Return the currently prepared transaction data.
+     *
+     * @return array
+     */
+    public function getRequest()
+    {
+        return $this->request;
+    }
+
+    /** @param array<string, mixed> $transaction */
+    /**
+     * Replace the current transaction while preserving persistent merchant data.
+     *
+     * @param array $transaction
+     * @return void
+     */
+    private function prepareRequest($transaction)
+    {
+        $persistent = array_intersect_key(
+            $this->request,
+            array_flip([
+                'merchantRef',
+                'merchantSession',
+                'languageMessages',
+                'timeStamp',
+            ])
+        );
+
+        $this->request = array_merge($transaction, $persistent);
+        $this->prepared = true;
+    }
+
+    /** @return array{fields: array<string, mixed>, postUrl: string} */
+    /**
+     * Build and validate a purchase, service payment or recharge request.
+     *
+     * @param array $params
+     * @return array Array containing postUrl and fields.
+     * @throws Vinti4Exception
+     */
+    private function preparePaymentRequest($params)
+    {
+        $transactionCode = (string) ((isset($params['transactionCode']) ? $params['transactionCode'] : ''));
+
+        if ($transactionCode === '') {
+            throw new Vinti4Exception('transactionCode é obrigatório.');
+        }
+
+        $request = [
+            'posID' => $this->posID,
+            'merchantRef' => (isset($params['merchantRef']) ? $params['merchantRef'] : self::generateMerchantRef()),
+            'merchantSession' => (isset($params['merchantSession']) ? $params['merchantSession'] : 'S' . date('YmdHis')),
+            'amount' => $this->normalizeRequestAmount((isset($params['amount']) ? $params['amount'] : '')),
+            'currency' => $this->currencyToCode((isset($params['currency']) ? $params['currency'] : self::CURRENCY_CVE)),
+            'transactionCode' => $transactionCode,
+            'languageMessages' => (isset($params['languageMessages']) ? $params['languageMessages'] : 'pt'),
+            'entityCode' => (isset($params['entityCode']) ? $params['entityCode'] : ''),
+            'referenceNumber' => (isset($params['referenceNumber']) ? $params['referenceNumber'] : ''),
+            'timeStamp' => (isset($params['timeStamp']) ? $params['timeStamp'] : date('Y-m-d H:i:s')),
+            'fingerprintversion' => '1',
+            'is3DSec' => '1',
+            'urlMerchantResponse' => (isset($params['urlMerchantResponse']) ? $params['urlMerchantResponse'] : ''),
+        ];
+
+        if ($transactionCode === self::TRANSACTION_TYPE_PURCHASE && !empty($params['billing'])) {
+            $billing = $this->normalizeBilling((array) $params['billing']);
+            $request['purchaseRequest'] = $this->generatePurchaseRequest($billing);
+        }
+
+        if ($error = $this->validateRequest($request)) {
+            throw new Vinti4Exception($error);
+        }
+
+        $request['fingerprint'] = $this->fingerprintRequest($request);
+
+        return [
+            'postUrl' => $this->buildPostUrl($request),
+            'fields' => $request,
+        ];
+    }
+
+    /** @return array{fields: array<string, mixed>, postUrl: string} */
+    /**
+     * Build and validate a refund request.
+     *
+     * @param array $params
+     * @return array Array containing postUrl and fields.
+     * @throws Vinti4Exception
+     */
+    private function prepareRefundRequest($params)
+    {
+        foreach (['amount', 'urlMerchantResponse', 'clearingPeriod', 'transactionID'] as $field) {
+            if (empty($params[$field])) {
+                throw new Vinti4Exception("Campo obrigatório faltando: {$field}");
+            }
+        }
+
+        $request = [
+            'posID' => $this->posID,
+            'merchantRef' => (isset($params['merchantRef']) ? $params['merchantRef'] : self::generateMerchantRef()),
+            'merchantSession' => (isset($params['merchantSession']) ? $params['merchantSession'] : 'S' . date('YmdHis')),
+            'amount' => $this->normalizeRequestAmount($params['amount']),
+            'currency' => self::CURRENCY_CVE,
+            'is3DSec' => '1',
+            'transactionCode' => self::TRANSACTION_TYPE_REFUND,
+            'urlMerchantResponse' => $params['urlMerchantResponse'],
+            'languageMessages' => (isset($params['languageMessages']) ? $params['languageMessages'] : 'pt'),
+            'timeStamp' => (isset($params['timeStamp']) ? $params['timeStamp'] : date('Y-m-d H:i:s')),
+            'fingerprintversion' => '1',
+            'entityCode' => '',
+            'referenceNumber' => '',
+            'reversal' => 'R',
+            'clearingPeriod' => $params['clearingPeriod'],
+            'transactionID' => $params['transactionID'],
+        ];
+
+        if ($error = $this->validateRequest($request)) {
+            throw new Vinti4Exception($error);
+        }
+
+        $request['fingerprint'] = $this->fingerprintRequest($request);
+
+        return [
+            'postUrl' => $this->buildPostUrl($request),
+            'fields' => $request,
+        ];
+    }
+
+    /** @param array<string, mixed> $request */
+    /**
+     * Build the CardPayment URL including fingerprint metadata.
+     *
+     * @param array $request
+     * @return string
+     */
+    private function buildPostUrl($request)
+    {
+        $endpoint = $this->endpoint !== null
+            ? $this->endpoint
+            : rtrim(self::DEFAULT_BASE_URL, '/') . self::ENDPOINT_PATH;
+
+        return $endpoint . '?' . http_build_query([
+            'FingerPrint' => $request['fingerprint'],
+            'TimeStamp' => $request['timeStamp'],
+            'FingerPrintVersion' => $request['fingerprintversion'],
+        ]);
+    }
+
+    /** @param array<string, mixed> $data */
+    /**
+     * Generate the request fingerprint expected by SISP.
+     *
+     * @param array $data Request fields.
+     * @return string Base64-encoded SHA-512 fingerprint.
+     */
+    private function fingerprintRequest($data)
+    {
+        $entity = !empty($data['entityCode']) ? (int) $data['entityCode'] : '';
+        $reference = !empty($data['referenceNumber']) ? (int) $data['referenceNumber'] : '';
+
+        $toHash = $this->encodedAuthCode()
+            . ((isset($data['timeStamp']) ? $data['timeStamp'] : ''))
+            . $this->amountToLong((isset($data['amount']) ? $data['amount'] : null))
+            . ((isset($data['merchantRef']) ? $data['merchantRef'] : ''))
+            . ((isset($data['merchantSession']) ? $data['merchantSession'] : ''))
+            . ((isset($data['posID']) ? $data['posID'] : ''))
+            . ((isset($data['currency']) ? $data['currency'] : ''))
+            . ((isset($data['transactionCode']) ? $data['transactionCode'] : ''))
+            . $entity
+            . $reference;
+
+        return base64_encode(hash('sha512', $toHash, true));
+    }
+
+    /** @param array<string, mixed> $data */
+    /**
+     * Generate the expected fingerprint for a SISP response.
+     *
+     * @param array $data Raw response fields.
+     * @return string Base64-encoded SHA-512 fingerprint.
+     */
+    private function fingerprintResponse($data)
+    {
+        $toHash = $this->encodedAuthCode()
+            . ((isset($data['messageType']) ? $data['messageType'] : ''))
+            . ((isset($data['merchantRespCP']) ? $data['merchantRespCP'] : ''))
+            . ((isset($data['merchantRespTid']) ? $data['merchantRespTid'] : ''))
+            . ((isset($data['merchantRespMerchantRef']) ? $data['merchantRespMerchantRef'] : ''))
+            . ((isset($data['merchantRespMerchantSession']) ? $data['merchantRespMerchantSession'] : ''))
+            . $this->amountToLong((isset($data['merchantRespPurchaseAmount']) ? $data['merchantRespPurchaseAmount'] : null))
+            . ((isset($data['merchantRespMessageID']) ? $data['merchantRespMessageID'] : ''))
+            . ((isset($data['merchantRespPan']) ? $data['merchantRespPan'] : ''))
+            . ((isset($data['merchantResp']) ? $data['merchantResp'] : ''))
+            . ((isset($data['merchantRespTimeStamp']) ? $data['merchantRespTimeStamp'] : ''))
+            . (!empty($data['merchantRespReferenceNumber'])
+                ? (int) $data['merchantRespReferenceNumber']
+                : '')
+            . (!empty($data['merchantRespEntityCode'])
+                ? (int) $data['merchantRespEntityCode']
+                : '')
+            . ((isset($data['merchantRespClientReceipt']) ? $data['merchantRespClientReceipt'] : ''))
+            . trim((string) ((isset($data['merchantRespAdditionalErrorMessage']) ? $data['merchantRespAdditionalErrorMessage'] : '')))
+            . ((isset($data['merchantRespReloadCode']) ? $data['merchantRespReloadCode'] : ''));
+
+        return base64_encode(hash('sha512', $toHash, true));
+    }
+
+    /**
+     * Generate the encoded POS authentication value used by fingerprints.
+     *
+     * @return string
+     */
+    private function encodedAuthCode()
+    {
+        return base64_encode(hash('sha512', $this->posAuthCode, true));
+    }
+
+    /**
+     * Normalize and validate an amount sent in a request.
+     *
+     * @param int|float|string $amount
+     * @return string
+     * @throws Vinti4Exception
+     */
+    private function normalizeRequestAmount($amount)
+    {
+        $value = trim((string) $amount);
+
+        if (!preg_match('/^[1-9]\d{0,12}$/', $value)) {
+            throw new Vinti4Exception(
+                'Amount deve ser um inteiro positivo com no máximo 13 dígitos.'
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * Convert a SISP amount into the integer representation used by fingerprints.
+     *
+     * The conversion avoids floating-point arithmetic and BCMath.
+     *
+     * @param int|float|string|null $amount
+     * @return string
+     * @throws Vinti4Exception
+     */
+    private function amountToLong($amount)
+    {
+        $value = trim((string) ($amount !== null ? $amount : '0'));
+
+        if (!preg_match('/^(\d+)(?:\.(\d{1,3}))?$/', $value, $matches)) {
+            throw new Vinti4Exception(
+                'O valor da resposta da SISP possui formato inválido.'
+            );
+        }
+
+        $integer = ltrim($matches[1], '0');
+        $integer = $integer === '' ? '0' : $integer;
+        $fraction = str_pad(isset($matches[2]) ? $matches[2] : '', 3, '0');
+        $result = ltrim($integer . $fraction, '0');
+
+        return $result === '' ? '0' : $result;
+    }
+
+    /**
+     * Convert an ISO 4217 alphabetic currency to its numeric representation.
+     *
+     * @param string|int $currency
+     * @return string
+     * @throws Vinti4Exception
+     */
+    private function currencyToCode($currency)
+    {
+        $currency = strtoupper(trim((string) $currency));
+
+        switch ($currency) {
+            case 'CVE':
+                return '132';
+            case 'USD':
+                return '840';
+            case 'EUR':
+                return '978';
+            case 'BRL':
+                return '986';
+            case 'GBP':
+                return '826';
+            case 'JPY':
+                return '392';
+        }
+
+        if (preg_match('/^\d{3}$/', $currency)) {
+            return $currency;
+        }
+
+        throw new Vinti4Exception("Moeda inválida: {$currency}.");
+    }
+
+    /** @param array<string, mixed> $params */
+    /**
+     * Validate a prepared SISP request.
+     *
+     * @param array $params
+     * @return string|null Validation error or null when valid.
+     */
+    private function validateRequest($params)
+    {
+        $transactionCode = (string) ((isset($params['transactionCode']) ? $params['transactionCode'] : ''));
+
+        if (!in_array($transactionCode, ['1', '2', '3', '4'], true)) {
+            return 'TransactionCode não suportado. Valores válidos: 1,2,3,4.';
+        }
+
+        if (strlen(trim((string) ((isset($params['merchantRef']) ? $params['merchantRef'] : '')))) !== 15) {
+            return 'MerchantRef é obrigatório e deve ter exatamente 15 caracteres.';
+        }
+
+        if (strlen(trim((string) ((isset($params['merchantSession']) ? $params['merchantSession'] : '')))) !== 15) {
+            return 'MerchantSession é obrigatório e deve ter exatamente 15 caracteres.';
+        }
+
+        if (in_array($transactionCode, ['2', '3'], true)) {
+            if (!preg_match('/^\d+$/', (string) ((isset($params['entityCode']) ? $params['entityCode'] : '')))) {
+                return 'EntityCode é obrigatório e deve ser numérico.';
+            }
+
+            if (!preg_match('/^\d{1,9}$/', (string) ((isset($params['referenceNumber']) ? $params['referenceNumber'] : '')))) {
+                return 'ReferenceNumber é obrigatório e deve ter até 9 dígitos.';
+            }
+        }
+
+        if (!preg_match('/^[1-9]\d{0,12}$/', (string) ((isset($params['amount']) ? $params['amount'] : '')))) {
+            return 'Amount deve ser um inteiro positivo com até 13 dígitos.';
+        }
+
+        if (!preg_match('/^\d{3}$/', (string) ((isset($params['currency']) ? $params['currency'] : '')))) {
+            return 'Currency deve ser um código numérico ISO 4217 de 3 dígitos.';
+        }
+
+        if (
+            $transactionCode === self::TRANSACTION_TYPE_REFUND
+            && $params['currency'] !== self::CURRENCY_CVE
+        ) {
+            return "Currency para estorno deve ser '132' (CVE).";
+        }
+
+        if (filter_var((isset($params['urlMerchantResponse']) ? $params['urlMerchantResponse'] : null), FILTER_VALIDATE_URL) === false) {
+            return 'UrlMerchantResponse deve ser uma URL válida.';
+        }
+
+        if (!in_array(strtolower((string) ((isset($params['languageMessages']) ? $params['languageMessages'] : ''))), ['pt', 'en', 'fr'], true)) {
+            return "LanguageMessages deve ser 'pt', 'en' ou 'fr'.";
+        }
+
+        if ($transactionCode === self::TRANSACTION_TYPE_REFUND) {
+            if (!preg_match('/^\d{1,4}$/', (string) ((isset($params['clearingPeriod']) ? $params['clearingPeriod'] : '')))) {
+                return 'ClearingPeriod deve ter até 4 dígitos numéricos.';
+            }
+
+            if (!preg_match('/^[A-Za-z0-9]{1,8}$/', (string) ((isset($params['transactionID']) ? $params['transactionID'] : '')))) {
+                return 'TransactionID deve ter até 8 caracteres alfanuméricos.';
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Normalize billing and 3D Secure customer data.
+     *
+     * Accepts friendly field names and original SISP equivalents and normalizes
+     * phones, account information and address matching values.
+     *
+     * @param array $billing
+     * @return array
+     */
+    private function normalizeBilling($billing)
+    {
+        $map = [
+            'email' => 'email',
+            'country' => 'billAddrCountry',
+            'billAddrCountry' => 'billAddrCountry',
+            'city' => 'billAddrCity',
+            'billAddrCity' => 'billAddrCity',
+            'address' => 'billAddrLine1',
+            'billAddrLine1' => 'billAddrLine1',
+            'address2' => 'billAddrLine2',
+            'billAddrLine2' => 'billAddrLine2',
+            'address3' => 'billAddrLine3',
+            'billAddrLine3' => 'billAddrLine3',
+            'postalCode' => 'billAddrPostCode',
+            'billAddrPostCode' => 'billAddrPostCode',
+            'state' => 'billAddrState',
+            'billAddrState' => 'billAddrState',
+            'shipCountry' => 'shipAddrCountry',
+            'shipAddrCountry' => 'shipAddrCountry',
+            'shipCity' => 'shipAddrCity',
+            'shipAddrCity' => 'shipAddrCity',
+            'shipAddress' => 'shipAddrLine1',
+            'shipAddrLine1' => 'shipAddrLine1',
+            'shipPostalCode' => 'shipAddrPostCode',
+            'shipAddrPostCode' => 'shipAddrPostCode',
+            'shipState' => 'shipAddrState',
+            'shipAddrState' => 'shipAddrState',
+            'phone' => 'mobilePhone',
+            'mobilePhone' => 'mobilePhone',
+            'workPhone' => 'workPhone',
+            'accountId' => 'acctID',
+            'acctID' => 'acctID',
+            'accountInfo' => 'acctInfo',
+            'acctInfo' => 'acctInfo',
+            'addressMatchesShipping' => 'addrMatch',
+            'addrMatch' => 'addrMatch',
+        ];
+
+        $normalized = ['billAddrCountry' => '132'];
+
+        foreach ($billing as $key => $value) {
+            $field = isset($map[$key]) ? $map[$key] : null;
+
+            if ($field === null) {
+                continue;
+            }
+
+            if ($field === 'mobilePhone' || $field === 'workPhone') {
+                if (is_string($value) || is_int($value)) {
+                    $value = ['cc' => '238', 'subscriber' => (string) $value];
+                }
+
+                if (is_array($value)) {
+                    $cc = preg_replace('/\D+/', '', (string) (isset($value['cc']) ? $value['cc'] : '238'));
+                    $cc = $cc === null ? '' : $cc;
+                    $subscriber = preg_replace('/\D+/', '', (string) (isset($value['subscriber']) ? $value['subscriber'] : ''));
+                    $subscriber = $subscriber === null ? '' : $subscriber;
+                    $value = $subscriber !== ''
+                        ? [
+                            'cc' => $cc !== '' ? $cc : '238',
+                            'subscriber' => $subscriber,
+                        ]
+                        : null;
+                } else {
+                    $value = null;
+                }
+            }
+
+            if ($field === 'addrMatch' && is_bool($value)) {
+                $value = $value ? 'Y' : 'N';
+            }
+
+            $normalized[$field] = $value;
+        }
+
+        if (array_key_exists('suspicious', $billing)) {
+            $accountInfo = is_array((isset($normalized['acctInfo']) ? $normalized['acctInfo'] : null))
+                ? $normalized['acctInfo']
+                : [];
+            $accountInfo['suspiciousAccActivity'] = $billing['suspicious'] ? '02' : '01';
+            $normalized['acctInfo'] = $accountInfo;
+        }
+
+        if (isset($normalized['acctInfo']) && is_array($normalized['acctInfo'])) {
+            $normalized['acctInfo'] = array_filter(
+                array_merge([
+                    'chAccAgeInd' => '01',
+                    'chAccChange' => '',
+                    'chAccDate' => '',
+                    'chAccPwChange' => '',
+                    'chAccPwChangeInd' => '01',
+                    'suspiciousAccActivity' => '01',
+                ], $normalized['acctInfo']),
+                function ($value) {
+                    return $value !== null && $value !== '';
+                }
+            );
+        }
+
+        return array_filter(
+            $normalized,
+            function ($value) {
+                return $value !== null && $value !== '' && $value !== array();
+            }
+        );
+    }
+
+    /** @param array<string, mixed> $billing */
+    /**
+     * Generate the Base64-encoded 3D Secure purchaseRequest.
+     *
+     * @param array $billing
+     * @return string
+     * @throws Vinti4Exception If required fields are missing or JSON encoding fails.
+     */
+    private function generatePurchaseRequest($billing)
+    {
+        $required = [
+            'email',
             'billAddrCountry',
             'billAddrCity',
             'billAddrLine1',
             'billAddrPostCode',
-            'email',
-            'clearingPeriod',
         ];
 
-        foreach ($params as $key => $value) {
-            if (!in_array($key, $allowed, true)) {
-                throw new InvalidArgumentException("Parâmetro não permitido: {$key}");
+        $missing = array_filter(
+            $required,
+            function ($field) use ($billing) {
+                return !isset($billing[$field]) || trim((string) $billing[$field]) === '';
             }
-            if ($key == 'currency') {
-                $value = $this->currencyToCode($value);
-            }
-            $this->request[$key] = $value;
-        }
+        );
 
-        return $this;
-    }
-
-    /**
-     * Sets the merchant reference and session for.
-     * @param string $ref       merchantRef (15 chars max)
-     * @param mixed $session    merchantSession (15 chars max)
-     * @return self
-     */
-    public function setMerchant($ref, $session = null){
-        return $this->setRequestParams([
-            'merchantRef' => $ref,
-            'merchantSession' => $session,
-        ]);
-    }
-
-    /**
-     * Prepares a **purchase (3DS)** payment request.
-     *
-     * This method sets up all the necessary data to initiate a purchase transaction with 3D Secure authentication.
-     * It builds the internal payload that will later be converted into a payment form.
-     *
-     * The `$billing` array may contain direct fields or a `user` sub-array, which will be automatically normalized:
-     * - Required fields: `email`, `billAddrCountry`, `billAddrCity`, `billAddrLine1`, `billAddrPostCode`.
-     * - Optional fields: `billAddrLine2`, `billAddrLine3`, `billAddrState`, `mobilePhone`, `workPhone`, `acctID`.
-     * - The `user` sub-array may include: `id`, `created_at`, `updated_at`, `suspicious`, `phone`, `mobilePhoneCC`, `workPhoneCC`, etc.
-     *
-     * @param float|int $amount   Transaction amount (in escudos or the configured currency).
-     * @param array     $billing  Customer billing data.
-     * @param string|int $currency Currency code (default: 'CVE' or equivalent numeric code).
-     *
-     * @return $this Returns the instance to allow method chaining (fluent interface).
-     *
-     * @throws InvalidArgumentException If any required data is missing or invalid during internal preparation.
-     *
-     * @example
-     * $vinti4->preparePurchasePayment(1500, [
-     *     'user' => [
-     *         'email' => 'customer@example.com',
-     *         'country' => '132',
-     *         'city' => 'Praia',
-     *         'mobilePhone' => '+23899123456'
-     *     ]
-     * ]);
-     */
-    public function preparePurchase($amount, array $billing, $currency = 'CVE')
-    {
-        $this->preparePaymentRequest([
-            'amount' => $amount,
-            'transactionCode' => self::TRANSACTION_TYPE_PURCHASE,
-            'currency' => $currency,
-            'billing' => $billing,
-        ]);
-        return $this;
-    }
-
-
-    /**
-     * Prepares a **service** payment request.
-     *
-     * Used for service payments with an entity code and reference number.
-     *
-     * @param float|int  $amount  Transaction amount.
-     * @param string|int $entity  Service entity code.
-     * @param string|int $number  Reference number of the service transaction.
-     *
-     * @return $this Returns the instance to allow method chaining (fluent interface).
-     *
-     * @throws InvalidArgumentException If any required data is missing or invalid.
-     */
-    public function prepareServicePayment($amount, $entity, $number)
-    {
-        $this->preparePaymentRequest([
-            'amount' => $amount,
-            'transactionCode' => self::TRANSACTION_TYPE_SERVICE,
-            'entityCode' => $entity,
-            'referenceNumber' => $number
-        ]);
-        return $this;
-    }
-
-    /**
-     * Prepares a **recharge** payment request.
-     *
-     * Used for recharging accounts, cards, or phones with an entity code and reference number.
-     *
-     * @param float|int  $amount  Recharge amount.
-     * @param string|int $entity  Recharge entity code.
-     * @param string|int $number  Reference number of the recharge.
-     *
-     * @return $this Returns the instance to allow method chaining (fluent interface).
-     *
-     * @throws InvalidArgumentException If any required data is missing or invalid.
-     */
-    public function prepareRecharge($amount, $entity, $number)
-    {
-        $this->preparePaymentRequest([
-            'amount' => $amount,
-            'transactionCode' => self::TRANSACTION_TYPE_RECHARGE,
-            'entityCode' => $entity,
-            'referenceNumber' => $number
-        ]);
-        return $this;
-    }
-
-    /**
-     * Prepares a **refund** payment request.
-     *
-     * This method is used to reverse a previously approved transaction.
-     * It requires the original transaction ID, and clearing period from  the successful transaction.
-     *
-     * @param float|int  $amount          Refund amount (must be an integer in currency units, no decimals for SISP).
-     * @param string      $transactionID   ID of the transaction to be refunded.
-     * @param string|int  $clearingPeriod  Clearing period related to the refund.
-     *
-     * @return $this Returns the instance to allow method chaining (fluent interface).
-     *
-     * @throws InvalidArgumentException If any required data is missing or invalid.
-     */
-    public function prepareRefund($amount, $transactionID, $clearingPeriod)
-    {
-        $this->preparePaymentRequest([
-            'transactionCode'   => self::TRANSACTION_TYPE_REFUND,
-            'amount'            => $amount,
-            'clearingPeriod'    => $clearingPeriod,
-            'transactionID'     => $transactionID
-        ]);
-        
-        $this->request['reversal'] = 'R';
-        
-        return $this;
-    }
-
-
-    /**
-     * Generates an **HTML payment form** with auto-submit to initiate the transaction on Vinti4Net.
-     *
-     * This method builds an HTML form with hidden fields containing all necessary transaction data,
-     * including the security fingerprint. When the page loads, the form is automatically submitted
-     * to the gateway URL.
-     *
-     * @param string      $responseUrl   URL to which the gateway should send the transaction response.
-     * @param string      $lang          languageMessages. example: 'pt', 'en', 'fr'
-     *
-     * @return string HTML markup of the form with auto-submit.
-     *
-     * @throws InvalidArgumentException If any required parameter is missing or invalid.
-     */
-    public function createPaymentForm($responseUrl, $lang = 'pt')
-    {
-        $this->request['urlMerchantResponse'] = $responseUrl;
-        if ($lang !== null) {
-            $this->request['languageMessages'] = $lang;
-        }
-
-        $paymentData = $this->processRequest($this->request);
-
-        $fields = '';
-        foreach ($paymentData['fields'] as $k => $v) {
-            $fields .= "<input type='hidden' name='{$k}' value='" . htmlspecialchars((string)$v) . "'>\n";
-        }
-
-        return "
-        <html>
-        <head><title>Pagamento Vinti4Net</title></head>
-        <body onload='document.forms[0].submit()'>
-            <form method='post' action='{$paymentData['postUrl']}'>
-                {$fields}
-            </form>
-            <p>processando...</p>
-        </body>
-        </html>";
-    }
-
-    /**
-     * Processes the response sent by Vinti4Net after a payment.
-     *
-     * This method validates the response received from the gateway, checks if the user canceled
-     * the transaction, computes the fingerprint to ensure data integrity, and extracts additional
-     * information such as DCC (Dynamic Currency Conversion) when applicable.
-     *
-     * The returned response has the following structure:
-     * - `status` (string): Transaction status (`SUCCESS`, `ERROR`, `CANCELLED`, `INVALID_FINGERPRINT`).
-     * - `message` (string): Descriptive status message.
-     * - `success` (bool): Indicates whether the transaction was successfully processed.
-     * - `data` (array): Raw data received from the gateway.
-     * - `dcc` (array): Dynamic currency conversion information (if applicable), including:
-     *     - `enabled` (bool)
-     *     - `amount` (float|null)
-     *     - `currency` (string|null)
-     *     - `markup` (float|null)
-     *     - `rate` (float|null)
-     * - `debug` (array): Debug information, especially if the fingerprint is invalid.
-     * - `detail` (string|null): Additional error details, if any.
-     *
-     * @param array $postData Data received via POST from the Vinti4Net gateway.
-     *
-     * @return array{
-     *     status: string,
-     *     message: string,
-     *     success: bool,
-     *     data: array,
-     *     dcc: array,
-     *     debug: array,
-     *     detail: string|null
-     * }
-     *
-     * @example
-     * $response = $vinti4->processResponse($_POST);
-     * if ($response['status'] === 'SUCCESS') {
-     *     echo "Payment completed successfully!";
-     * } elseif ($response['status'] === 'CANCELLED') {
-     *     echo "User canceled the transaction.";
-     * } else {
-     *     echo "Payment failed: " . $response['message'];
-     * }
-     */
-    public function processResponse(array $postData)
-    {
-        $result = [
-            'status' => 'ERROR',
-            'message' => 'Erro desconhecido na transação.',
-            'success' => false,
-            'data' => $postData,
-            'dcc' => [],
-            'debug' => [],
-            'detail' => ''
-        ];
-
-        if (isset($postData['UserCancelled']) && $postData['UserCancelled'] === 'true') {
-            $result['status'] = 'CANCELLED';
-            $result['message'] = 'Utilizador cancelou a transação.';
-            return $result;
-        }
-
-        if (isset($postData['messageType']) && in_array($postData['messageType'], self::SUCCESS_MESSAGE_TYPES, true)) {
-
-            $finger = $this->fingerprintResponse($postData);
-            $fingerValid = isset($postData['resultFingerPrint']) && $postData['resultFingerPrint'] === $finger;
-            $result['success'] = $fingerValid;
-
-            $result['status'] = $fingerValid ? 'SUCCESS' : 'INVALID_FINGERPRINT';
-            $result['message'] = $fingerValid ? 'Transação válida.' : 'Fingerprint inválido.';
-
-            if (!$fingerValid) {
-                $result['debug'] = [
-                    'recebido' => isset($postData['resultFingerPrint']) ? $postData['resultFingerPrint'] : '',
-                    'calculado' => $finger
-                ];
-            }
-
-            if (!empty($postData['merchantRespDCCData'])) {
-                $dcc = json_decode($postData['merchantRespDCCData'], true);
-                if (json_last_error() === JSON_ERROR_NONE && is_array($dcc)) {
-                    $result['dcc'] = [
-                        'enabled' => isset($dcc['dcc']) && $dcc['dcc'] === 'Y',
-                        'amount'  => isset($dcc['dccAmount']) ? $dcc['dccAmount'] : null,
-                        'currency' => isset($dcc['dccCurrency']) ? $dcc['dccCurrency'] : null,
-                        'markup'  => isset($dcc['dccMarkup']) ? $dcc['dccMarkup'] : null,
-                        'rate'    => isset($dcc['dccRate']) ? $dcc['dccRate'] : null
-                    ];
-                }
-            }
-
-            return $result;
-        }
-
-        $result['message'] = isset($postData['merchantRespErrorDescription'])
-            ? $postData['merchantRespErrorDescription']
-            : 'Transação falhou.';
-
-        $result['detail'] = isset($postData['merchantRespErrorDetail'])
-            ? $postData['merchantRespErrorDetail']
-            : null;
-
-        return $result;
-    }
-
-    /**
-     * Prepares the internal structure of the request.
-     *
-     * @param array $params Parameters to configure the request.
-     *
-     * @return void
-     *
-     * @throws Exception If an error occurs during preparation.
-     */
-    private function preparePaymentRequest(array $params)
-    {
-        if ($this->prepared) {
-            throw new Exception("Vinti4Net: ONLY 1 PAYMENT REQUEST MUST BE PREPARED");
-        }
-
-        $this->request = [
-            'posID' => $this->posID,
-            'merchantRef' => isset($params['merchantRef']) ? $params['merchantRef'] : 'R' . date('YmdHis'),
-            'merchantSession' => isset($params['merchantSession']) ? $params['merchantSession'] : 'S' . date('YmdHis'),
-            'amount' => (int)(float)$params['amount'],
-            'currency' => $this->currencyToCode(isset($params['currency']) ? $params['currency'] : self::CURRENCY_CVE),
-            'transactionCode' => isset($params['transactionCode']) ? $params['transactionCode'] : self::TRANSACTION_TYPE_PURCHASE,
-            'languageMessages' => isset($params['languageMessages']) ? $params['languageMessages'] : 'pt',
-            'entityCode' => isset($params['entityCode']) ? $params['entityCode'] : '',
-            'referenceNumber' => isset($params['referenceNumber']) ? $params['referenceNumber'] : '',
-            'timeStamp' => date('Y-m-d H:i:s'),
-            'fingerprintversion' => '1',
-            'is3DSec' => '1',
-            'urlMerchantResponse' => isset($params['urlMerchantResponse']) ? $params['urlMerchantResponse'] : '',
-            'billing' => isset($params['billing']) ? $params['billing'] : []
-        ];
-
-        $this->prepared = true;
-    }
-
-    /**
-     * Builds the final fields to be sent via POST to the SISP gateway.
-     *
-     * @param array $fields Input fields to include in the request.
-     *
-     * @return array{postUrl: string, fields: array} Returns the POST URL and the prepared fields.
-     */
-    private function processRequest(array $fields)
-    {
-        if ($fields['transactionCode'] === self::TRANSACTION_TYPE_PURCHASE && !empty($fields['billing'])) {
-            $fields['purchaseRequest'] = $this->generatePurchaseRequest($fields['billing']);
-            $fields = array_merge($fields, $fields['billing']);
-        }
-        
-        unset($fields['billing']);
-
-        $fields['fingerprint'] = $this->fingerprintRequest($fields);
-
-        $postUrl = $this->baseUrl . '?' . http_build_query([
-            'FingerPrint' => $fields['fingerprint'],
-            'TimeStamp' => $fields['timeStamp'],
-            'FingerPrintVersion' => $fields['fingerprintversion']
-        ]);
-
-        return [
-            'postUrl' => $postUrl,
-            'fields' => $fields
-        ];
-    }
-
-    /**
-     * Normalizes the billing data for submission to the SISP gateway.
-     *
-     * @param array $billing Billing information to be normalized.
-     *
-     * @return array Normalized billing data ready for the request.
-     */
-    private function normalizeBilling(array $billing)
-    {
-        $user = isset($billing['user']) ? $billing['user'] : [];
-        unset($billing['user']);
-
-        $get = function ($src, $key, $default = null) {
-            if (is_array($src)) {
-                return isset($src[$key]) ? $src[$key] : $default;
-            }
-            return isset($src->$key) ? $src->$key : $default;
-        };
-
-        $extractCC = function ($phone, $default = '238') {
-            $phone = preg_replace('/\D+/', '', $phone);
-            if (preg_match('/^(?:\+|00)?(\d{1,3})/', $phone, $m)) {
-                return $m[1];
-            }
-            return $default;
-        };
-
-        $email    = isset($billing['email']) ? $billing['email'] : $get($user, 'email');
-        $country  = isset($billing['billAddrCountry']) ? $billing['billAddrCountry'] : $get($user, 'country', '132');
-        $city     = isset($billing['billAddrCity']) ? $billing['billAddrCity'] : $get($user, 'city', '');
-        $line1    = isset($billing['billAddrLine1']) ? $billing['billAddrLine1'] : $get($user, 'address', '');
-        $line2    = isset($billing['billAddrLine2']) ? $billing['billAddrLine2'] : $get($user, 'address2', '');
-        $line3    = isset($billing['billAddrLine3']) ? $billing['billAddrLine3'] : $get($user, 'address3', '');
-        $postcode = isset($billing['billAddrPostCode']) ? $billing['billAddrPostCode'] : $get($user, 'postCode', '');
-        $state    = isset($billing['billAddrState']) ? $billing['billAddrState'] : $get($user, 'state');
-
-        $mobile = isset($billing['mobilePhone']) ? $billing['mobilePhone'] : $get($user, 'mobilePhone', $get($user, 'phone'));
-        $work   = isset($billing['workPhone']) ? $billing['workPhone'] : $get($user, 'workPhone');
-
-        $mobilePhone = $mobile ? [
-            'cc' => $get($user, 'mobilePhoneCC', $extractCC($mobile)),
-            'subscriber' => preg_replace('/\D+/', '', $mobile)
-        ] : null;
-
-        $workPhone = $work ? [
-            'cc' => $get($user, 'workPhoneCC', $extractCC($work)),
-            'subscriber' => preg_replace('/\D+/', '', $work)
-        ] : null;
-
-        $acctID      = $get($user, 'id');
-        $createdAt   = $get($user, 'created_at');
-        $updatedAt   = $get($user, 'updated_at');
-        $suspicious  = $get($user, 'suspicious');
-
-        $chAccAgeInd = $get($user, 'chAccAgeInd', ($createdAt ? '05' : '01'));
-        $chAccPwInd  = $get($user, 'chAccPwChangeInd', ($updatedAt ? '05' : '01'));
-
-        $acctInfo = [
-            'chAccAgeInd' => $chAccAgeInd,
-            'chAccChange' => $updatedAt ? date('Ymd', strtotime($updatedAt)) : '',
-            'chAccDate' => $createdAt ? date('Ymd', strtotime($createdAt)) : '',
-            'chAccPwChange' => $updatedAt ? date('Ymd', strtotime($updatedAt)) : '',
-            'chAccPwChangeInd' => $chAccPwInd,
-            'suspiciousAccActivity' => isset($suspicious) ? ($suspicious ? '02' : '01') : ''
-        ];
-
-        foreach ($acctInfo as $k => $v) {
-            if ($v === '') unset($acctInfo[$k]);
-        }
-
-        $data = [
-            'email'            => $email,
-            'billAddrCountry'  => $country,
-            'billAddrCity'     => $city,
-            'billAddrLine1'    => $line1,
-            'billAddrLine2'    => $line2,
-            'billAddrLine3'    => $line3,
-            'billAddrPostCode' => $postcode,
-            'billAddrState'    => $state,
-            'mobilePhone'      => $mobilePhone,
-            'workPhone'        => $workPhone,
-            'acctID'           => $acctID,
-            'acctInfo'         => !empty($acctInfo) ? $acctInfo : null,
-        ];
-
-        foreach ($data as $k => $v) {
-            if ($v === null || $v === '') unset($data[$k]);
-        }
-
-        return $data;
-    }
-
-    /**
-     * Converts an ISO currency code to the SISP numeric code.
-     *
-     * @param string|int $currency ISO 4217 currency code (e.g., 'CVE', 'USD') or numeric code.
-     *
-     * @return int Corresponding numeric code used by SISP.
-     *
-     * @throws InvalidArgumentException If the provided currency is invalid or unsupported.
-     */
-
-    private function currencyToCode($currency)
-    {
-        $currency = strtoupper($currency);
-
-        switch ($currency) {
-            case 'CVE':
-                return 132;
-            case 'USD':
-                return 840;
-            case 'EUR':
-                return 978;
-            case 'BRL':
-                return 986;
-            case 'GBP':
-                return 826;
-            case 'JPY':
-                return 392;
-            case 'CNY':
-                return 156;
-        }
-
-        if (is_numeric($currency)) {
-            return (int)$currency;
-        }
-
-        throw new InvalidArgumentException("Invalid currency code: $currency");
-    }
-
-    /**
-     * Calculates the fingerprint for the request.
-     *
-     * @param array $data Data of the request to hash.
-     * @param string $type Type of request: 'payment' or 'refund'.
-     *
-     * @return string Base64-encoded SHA512 hash of the request data.
-     */
-    private function fingerprintRequest(array $data)
-    {
-        $encodedPOSAuthCode = base64_encode(hash('sha512', $this->posAuthCode, true));
-
-        $amount = isset($data['amount']) ? (float)$data['amount'] : 0;
-        $amountLong = (int)bcmul($amount, '1000', 0);
-
-        $entity = !empty($data['entityCode']) ? (int)$data['entityCode'] : '';
-        $reference = !empty($data['referenceNumber']) ? (int)$data['referenceNumber'] : '';
-
-        $toHash = $encodedPOSAuthCode .
-            (isset($data['timeStamp']) ? $data['timeStamp'] : '') .
-            $amountLong .
-            (isset($data['merchantRef']) ? $data['merchantRef'] : '') .
-            (isset($data['merchantSession']) ? $data['merchantSession'] : '') .
-            (isset($data['posID']) ? $data['posID'] : '') .
-            (isset($data['currency']) ? $data['currency'] : '') .
-            (isset($data['transactionCode']) ? $data['transactionCode'] : '') .
-            $entity .
-            $reference;
-        
-        return base64_encode(hash('sha512', $toHash, true));
-    }
-
-
-    /**
-     * Calculates the fingerprint for the response sent by the SISP gateway.
-     *
-     * @param array $data Response data to validate.
-     * @param string $type Type of response: 'payment' or 'refund'.
-     *
-     * @return string Base64-encoded SHA512 hash of the response data.
-     */
-    private function fingerprintResponse(array $data)
-    {
-        $encodedPOSAuthCode = base64_encode(hash('sha512', $this->posAuthCode, true));
-
-         $amount = isset($data["merchantRespPurchaseAmount"]) ? (float)$data["merchantRespPurchaseAmount"] : 0;
-         $amountLong = (int)bcmul($amount, '1000', 0);
-
-         $toHash =
-             $encodedPOSAuthCode .
-             (isset($data["messageType"]) ? $data["messageType"] : '') .
-             (isset($data["merchantRespCP"]) ? $data["merchantRespCP"] : '') .
-             (isset($data["merchantRespTid"]) ? $data["merchantRespTid"] : '') .
-             (isset($data["merchantRespMerchantRef"]) ? $data["merchantRespMerchantRef"] : '') .
-             (isset($data["merchantRespMerchantSession"]) ? $data["merchantRespMerchantSession"] : '') .
-             $amountLong .
-             (isset($data["merchantRespMessageID"]) ? $data["merchantRespMessageID"] : '') .
-             (isset($data["merchantRespPan"]) ? $data["merchantRespPan"] : '') .
-             (isset($data["merchantResp"]) ? $data["merchantResp"] : '') .
-             (isset($data["merchantRespTimeStamp"]) ? $data["merchantRespTimeStamp"] : '') .
-             (isset($data['merchantRespReferenceNumber']) && $data['merchantRespReferenceNumber'] !== '' ? (int)$data['merchantRespReferenceNumber'] : '') .
-             (isset($data['merchantRespEntityCode']) && $data['merchantRespEntityCode'] !== '' ? (int)$data['merchantRespEntityCode'] : '') .
-             (isset($data["merchantRespClientReceipt"]) ? $data["merchantRespClientReceipt"] : '') .
-             trim(isset($data["merchantRespAdditionalErrorMessage"]) ? $data["merchantRespAdditionalErrorMessage"] : '') .
-             (isset($data["merchantRespReloadCode"]) ? $data["merchantRespReloadCode"] : '');
-
-        return base64_encode(hash('sha512', $toHash, true));
-    }
-
-
-    /**
-     * Generates the Base64-encoded JSON for the billing section.
-     *
-     * @param array $billing Billing data to encode.
-     *
-     * @return string Base64-encoded JSON string.
-     *
-     * @throws InvalidArgumentException If the billing data is invalid or incomplete.
-     */
-    private function generatePurchaseRequest(array $billing)
-    {
-        $required = ['billAddrCountry', 'billAddrCity', 'billAddrLine1', 'billAddrPostCode', 'email'];
-
-        $billing = $this->normalizeBilling($billing);
-
-        foreach ($required as $key) {
-            if (!isset($billing[$key]) || $billing[$key] === '') {
-                throw new InvalidArgumentException("Campo obrigatório ausente em billing: {$key}");
-            }
+        if ($missing !== []) {
+            throw new Vinti4Exception(
+                'Campos obrigatórios ausentes em billing: '
+                    . implode(', ', $missing)
+                    . '.'
+            );
         }
 
         $json = json_encode($billing, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
         if ($json === false) {
-            throw new InvalidArgumentException("Erro ao gerar JSON de billing.");
+            throw new Vinti4Exception(
+                'Erro ao gerar JSON para billing (purchaseRequest): ' . json_last_error_msg()
+            );
         }
 
         return base64_encode($json);
+    }
+
+    /** @param array<string, mixed> $data */
+    /**
+     * Extract Dynamic Currency Conversion data from a SISP response.
+     *
+     * @param array $data Raw response data.
+     * @return array Normalized DCC information.
+     */
+    private function extractDcc($data)
+    {
+        $rawDcc = trim((string) ((isset($data['merchantRespDCCData']) ? $data['merchantRespDCCData'] : '')));
+
+        if ($rawDcc === '') {
+            return ['enabled' => false];
+        }
+
+        $dcc = json_decode($rawDcc, true);
+
+        if (!is_array($dcc)) {
+            return [
+                'enabled' => false,
+                'error' => 'DCC inválido ou mal formatado.',
+            ];
+        }
+
+        return [
+            'enabled' => ((isset($dcc['dcc']) ? $dcc['dcc'] : 'N')) === 'Y',
+            'amount' => (isset($dcc['dccAmount']) ? $dcc['dccAmount'] : null),
+            'currency' => (isset($dcc['dccCurrency']) ? $dcc['dccCurrency'] : null),
+            'markup' => (isset($dcc['dccMarkup']) ? $dcc['dccMarkup'] : null),
+            'rate' => (isset($dcc['dccRate']) ? $dcc['dccRate'] : null),
+        ];
     }
 }
